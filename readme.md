@@ -1,8 +1,12 @@
 High performance molecule visualizer built in Rust and wgpu
 
-Part 1:
-- SDF file parser, test with real data from PubChem
+Ressources:
+- [Chemical table file](https://en.wikipedia.org/wiki/Chemical_table_file)
+- [SDF File format guidance](https://www.nonlinear.com/progenesis/sdf-studio/v0.9/faq/sdf-file-format-guidance.aspx)
+- [Cylinder](https://www.songho.ca/opengl/gl_cylinder.html)
+- [Sphere](https://www.songho.ca/opengl/gl_sphere.html)
 
+Part 1:
 - Render the atoms and bonds in a molecule
   - Ball and stick model
   - Space filling model
