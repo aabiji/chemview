@@ -10,6 +10,9 @@ Ressources:
 Interesting tangents:
 - [Contribute to glam?](https://github.com/bitshifter/glam-rs)
 
+Notes:
+- Port to winit 0.31.0 once it comes out of beta, although the new api is different from the stable one
+
 Part 1:
 - [x] Basic SDF parser with tests
 
