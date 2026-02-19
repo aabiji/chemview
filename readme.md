@@ -5,17 +5,23 @@ Ressources:
 - [SDF File format guidance](https://www.nonlinear.com/progenesis/sdf-studio/v0.9/faq/sdf-file-format-guidance.aspx)
 - [Cylinder](https://www.songho.ca/opengl/gl_cylinder.html)
 - [Sphere](https://www.songho.ca/opengl/gl_sphere.html)
+- [Learn WGPU](https://sotrh.github.io/learn-wgpu/beginner/tutorial1-window/#boring-i-know)
+
+Interesting tangents:
+- [Contribute to glam?](https://github.com/bitshifter/glam-rs)
 
 Part 1:
-- Render the atoms and bonds in a molecule
-  - Ball and stick model
-  - Space filling model
-    - Using van der Waal radii
-  - Each atom/bond should have their own color, using the CPK colorscheme
+- [x] Basic SDF parser with tests
 
-- Nice graphics:
-  - Shader which highlights edges and provides nice phong lighting in the scene
-  - 3D camera panning and zooming in/out
+- [ ] Render the atoms and bonds in a molecule
+  - [ ] Ball and stick model
+  - [ ] Space filling model
+    - [ ] Using van der Waal radii
+    - [ ] Each atom/bond should have their own color, using the CPK colorscheme
+
+- [ ] Nice graphics:
+  - [ ] Shader which highlights edges and provides nice phong lighting in the scene
+  - [ ] 3D camera panning and zooming in/out
 
 Part 2:
 - mmCIF parser, test with real data from the Protein Data Bank
@@ -29,4 +35,4 @@ Part 2:
 - Performance engineering to render thousands of atoms while maintaining 60 fps without a beefy gpu
 
 Part 3:
-- Port to WASM, add a basic UI to select/search for files
+- Port to WASM, add a basic UI to select/search for files, ask for feedback from actual scientists
