@@ -1,5 +1,6 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Quat, Vec3};
+use glam::{Mat4, Quat, Vec2, Vec3};
+use std::collections::HashSet;
 use std::f32::consts::FRAC_PI_4;
 use std::fs::File;
 use std::io;
@@ -21,8 +22,9 @@ use wgpu::{
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
-    event::WindowEvent,
+    event::{ElementState, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    keyboard::{Key, NamedKey},
     window::{Window, WindowAttributes, WindowId},
 };
 
@@ -125,26 +127,110 @@ fn load_shader_source() -> Result<String, io::Error> {
     Ok(contents)
 }
 
-fn create_transform_matrix(aspect_ratio: f32) -> Mat4 {
-    let projection = Mat4::perspective_rh(FRAC_PI_4, aspect_ratio, 1.0, 10.0);
-    // The camera is point in the -z direction (out of the screen)
-    // The cube is positioned at (0, 0, 0) for now, so the camera's z should be negative (behind)
-    let view = Mat4::look_at_rh(Vec3::new(0.0, 0.0, 6.0), Vec3::ZERO, Vec3::Y);
-    projection * view
+enum Translate {
+    Up,
+    Down,
+    Left,
+    Right,
+    Forward,
+    Backward,
+}
+
+struct Camera {
+    pitch: f32,
+    yaw: f32,
+    field_of_view: f32,
+    speed: f32,
+    sensitivity: f32,
+    prev_mouse_pos: Vec2,
+    position: Vec3,
+    front: Vec3,
+}
+
+impl Camera {
+    fn new() -> Self {
+        Self {
+            pitch: 0.0,
+            yaw: 90.0,
+            field_of_view: 45.0,
+            speed: 1.0,
+            sensitivity: 0.05,
+            prev_mouse_pos: Vec2::new(0.0, 0.0),
+            front: Vec3::new(0.0, 0.0, 1.0),
+            position: Vec3::new(0.0, 0.0, -3.0),
+        }
+    }
+
+    fn matrix(&self, aspect_ratio: f32) -> Mat4 {
+        let fov = self.field_of_view.to_radians();
+        let projection = Mat4::perspective_rh(fov, aspect_ratio, 1.0, 100.0);
+        let view = Mat4::look_at_rh(self.position, self.position + self.front, Vec3::Y);
+        projection * view
+    }
+
+    fn translate(&mut self, m: Translate) {
+        let up = Vec3::Y;
+        let right = self.front.cross(up).normalize();
+        match m {
+            Translate::Up => self.position += up * self.speed,
+            Translate::Down => self.position -= up * self.speed,
+            Translate::Left => self.position -= right * self.speed,
+            Translate::Right => self.position += right * self.speed,
+            Translate::Forward => self.position += self.front * self.speed,
+            Translate::Backward => self.position -= self.front * self.speed,
+        }
+    }
+
+    fn rotate(&mut self, mouse_x: f32, mouse_y: f32, mouse_down: bool) {
+        let offset = Vec2::new(
+            (mouse_x - self.prev_mouse_pos.x) * self.sensitivity,
+            (self.prev_mouse_pos.y - mouse_y) * self.sensitivity,
+        );
+        self.prev_mouse_pos = Vec2::new(mouse_x, mouse_y);
+        if !mouse_down {
+            return;
+        }
+
+        self.yaw += offset.x;
+        self.pitch = (self.pitch + offset.y).clamp(-89.9, 89.9);
+
+        let front = Vec3::new(
+            self.yaw.to_radians().cos() * self.pitch.to_radians().cos(),
+            self.pitch.to_radians().sin(),
+            self.yaw.to_radians().sin() * self.pitch.to_radians().cos(),
+        );
+        self.front = front.normalize();
+    }
+
+    fn zoom(&mut self, inwards: bool) {
+        let offset = if inwards { -1.0 } else { 1.0 };
+        self.field_of_view = (self.field_of_view + offset).clamp(1.0, 45.0);
+    }
 }
 
 struct State {
     window: Arc<Window>,
     window_size: PhysicalSize<u32>,
+
     device: Device,
     queue: Queue,
     bind_group: BindGroup,
     render_pipeline: RenderPipeline,
+
     depth_texture_view: TextureView,
+    msaa_texture_view: TextureView,
+
     vertex_buffer: Buffer,
     index_buffer: Buffer,
+    uniform_buffer: Buffer,
+
     num_instances: u32,
     num_indices: u32,
+
+    camera: Camera,
+    mouse_down: bool,
+    pressed_keys: HashSet<String>,
+
     // `surface` should be the last to get dropped
     surface: Surface<'static>,
     surface_format: TextureFormat,
@@ -180,10 +266,14 @@ impl State {
             usage: BufferUsages::INDEX,
         });
 
-        let matrix = create_transform_matrix(window_size.width as f32 / window_size.height as f32);
+        let camera = Camera::new();
+        let ratio = window_size.width as f32 / window_size.height as f32;
+        let mouse_down = false;
+        let pressed_keys: HashSet<String> = HashSet::new();
+
         let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Transformation matrix uniform buffer"),
-            contents: bytemuck::cast_slice(matrix.as_ref()),
+            contents: bytemuck::cast_slice(camera.matrix(ratio).as_ref()),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
@@ -203,6 +293,13 @@ impl State {
 
         let depth_texture_view =
             State::create_depth_texture(&device, window_size.width, window_size.height);
+
+        let msaa_texture_view = State::create_msaa_texture(
+            &device,
+            surface_format.add_srgb_suffix(),
+            window_size.width,
+            window_size.height,
+        );
 
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Main bind group layout"),
@@ -294,7 +391,10 @@ impl State {
                 stencil: StencilState::default(),
                 bias: DepthBiasState::default(),
             }),
-            multisample: MultisampleState::default(),
+            multisample: MultisampleState {
+                count: 4,
+                ..MultisampleState::default()
+            },
             multiview_mask: None,
             cache: None,
         });
@@ -302,15 +402,26 @@ impl State {
         let state = State {
             window,
             window_size,
+
             device,
             queue,
             bind_group,
-            depth_texture_view,
             render_pipeline,
+
+            depth_texture_view,
+            msaa_texture_view,
+
             vertex_buffer,
             index_buffer,
+            uniform_buffer,
+
             num_instances,
             num_indices,
+
+            camera,
+            mouse_down,
+            pressed_keys,
+
             surface,
             surface_format,
         };
@@ -333,35 +444,116 @@ impl State {
     }
 
     fn create_depth_texture(device: &Device, width: u32, height: u32) -> TextureView {
-        let depth_texture = device.create_texture(&TextureDescriptor {
+        let texture = device.create_texture(&TextureDescriptor {
             size: Extent3d {
                 width,
                 height,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count: 4,
             dimension: wgpu::TextureDimension::D2,
             format: TextureFormat::Depth24Plus,
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TRANSIENT,
             label: Some("Depth buffer"),
             view_formats: &[],
         });
-        depth_texture.create_view(&TextureViewDescriptor::default())
+        texture.create_view(&TextureViewDescriptor::default())
+    }
+
+    fn create_msaa_texture(
+        device: &Device,
+        format: TextureFormat,
+        width: u32,
+        height: u32,
+    ) -> TextureView {
+        let texture = device.create_texture(&TextureDescriptor {
+            size: Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 4,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            label: Some("MSAA Texture"),
+            view_formats: &[],
+        });
+        texture.create_view(&TextureViewDescriptor::default())
     }
 
     fn get_window(&self) -> &Window {
         &self.window
     }
 
+    fn set_mouse_pressed(&mut self, pressed: bool) {
+        self.mouse_down = pressed;
+    }
+
+    fn set_key_press(&mut self, key: String, pressed: bool) {
+        if pressed {
+            self.pressed_keys.insert(key);
+        } else {
+            self.pressed_keys.remove(&key);
+        }
+    }
+
     fn resize(&mut self, size: PhysicalSize<u32>) {
         self.window_size = size;
+        self.depth_texture_view = State::create_depth_texture(
+            &self.device,
+            self.window_size.width,
+            self.window_size.height,
+        );
+        self.msaa_texture_view = State::create_msaa_texture(
+            &self.device,
+            self.surface_format.add_srgb_suffix(),
+            self.window_size.width,
+            self.window_size.height,
+        );
+        self.update_camera_transform();
         self.configure_surface();
     }
 
+    fn update_camera_transform(&mut self) {
+        let ratio = self.window_size.width as f32 / self.window_size.height as f32;
+        let matrix = self.camera.matrix(ratio);
+        self.queue.write_buffer(
+            &self.uniform_buffer,
+            0,
+            bytemuck::cast_slice(matrix.as_ref()),
+        );
+    }
+
+    fn update_keys(&mut self) {
+        if self.pressed_keys.contains("w") {
+            self.camera.translate(Translate::Forward);
+        }
+        if self.pressed_keys.contains("a") {
+            self.camera.translate(Translate::Left);
+        }
+        if self.pressed_keys.contains("s") {
+            self.camera.translate(Translate::Backward);
+        }
+        if self.pressed_keys.contains("d") {
+            self.camera.translate(Translate::Right);
+        }
+        if self.pressed_keys.contains("U") {
+            self.camera.translate(Translate::Down);
+        }
+        if self.pressed_keys.contains("D") {
+            self.camera.translate(Translate::Up);
+        }
+    }
+
     fn render(&mut self) {
+        self.update_keys();
+        self.update_camera_transform();
+
         let surface_texture = self.surface.get_current_texture().unwrap();
-        let texture_view = surface_texture.texture.create_view(&TextureViewDescriptor {
+        let surface_texture_view = surface_texture.texture.create_view(&TextureViewDescriptor {
             format: Some(self.surface_format.add_srgb_suffix()),
             ..Default::default()
         });
@@ -372,9 +564,9 @@ impl State {
             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Main render pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &texture_view,
+                    view: &self.msaa_texture_view,
+                    resolve_target: Some(&surface_texture_view),
                     depth_slice: None,
-                    resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                         store: wgpu::StoreOp::Store,
@@ -436,8 +628,64 @@ impl ApplicationHandler for App {
                 state.render();
                 state.get_window().request_redraw();
             }
+
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => state.resize(size),
+
+            WindowEvent::Resized(size) => state.resize(size), // Resize will request a redraw
+
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        logical_key,
+                        state: s,
+                        ..
+                    },
+                ..
+            } => {
+                let pressed = s == ElementState::Pressed;
+
+                match logical_key {
+                    Key::Character(c) => {
+                        if pressed {
+                            state.set_key_press(c.to_string(), true);
+                        } else {
+                            state.set_key_press(c.to_string(), false);
+                        }
+                    }
+
+                    Key::Named(k) => match k {
+                        NamedKey::ArrowDown => state.set_key_press(String::from("D"), pressed),
+                        NamedKey::ArrowUp => state.set_key_press(String::from("U"), pressed),
+                        _ => {}
+                    },
+                    _ => {}
+                }
+
+                state.get_window().request_redraw();
+            }
+
+            WindowEvent::MouseInput {
+                state: ms, button, ..
+            } => {
+                state.set_mouse_pressed(button == MouseButton::Left && ms == ElementState::Pressed)
+            }
+
+            WindowEvent::CursorMoved { position, .. } => {
+                state
+                    .camera
+                    .rotate(position.x as f32, position.y as f32, state.mouse_down);
+                state.get_window().request_redraw();
+            }
+
+            WindowEvent::MouseWheel { delta, .. } => {
+                let delta_y = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => y,
+                    MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
+                };
+                state.camera.zoom(delta_y < 0.0);
+                state.get_window().request_redraw();
+            }
+
             _ => {}
         }
     }
