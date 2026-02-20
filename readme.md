@@ -16,6 +16,13 @@ Notes:
 Part 1:
 - [x] Basic SDF parser with tests
 
+- [ ] WGPU usage:
+  - [x] Add a depth buffer
+  - [ ] Setup basic camera movement
+  - [ ] Render multiple items using instancing
+  - [ ] Refactor the wgpu usage into its own module in order to make drawing shapes very simple
+  - [ ] Think about how compounds will be drawn, investigate what PubChem does
+
 - [ ] Render the atoms and bonds in a molecule
   - [ ] Ball and stick model
   - [ ] Space filling model

@@ -7,15 +7,16 @@ use std::mem::offset_of;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::{borrow::Cow, io::Read};
-use wgpu::BindGroup;
 use wgpu::util::DeviceExt;
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingType, Buffer, BufferAddress, BufferBindingType, BufferSize, BufferUsages, Device,
-    DeviceDescriptor, FragmentState, MultisampleState, PipelineLayoutDescriptor, PrimitiveState,
-    Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderStages, Surface,
-    TextureFormat, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferAddress, BufferBindingType, BufferSize,
+    BufferUsages, DepthBiasState, DepthStencilState, Device, DeviceDescriptor, Extent3d,
+    FragmentState, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PrimitiveState,
+    Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
+    ShaderStages, StencilState, Surface, TextureDescriptor, TextureFormat, TextureUsages,
+    TextureView, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat,
     VertexState, VertexStepMode, util::BufferInitDescriptor,
 };
 use winit::{
@@ -109,6 +110,7 @@ struct State {
     queue: Queue,
     bind_group: BindGroup,
     render_pipeline: RenderPipeline,
+    depth_texture_view: TextureView,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     num_indices: u32,
@@ -159,6 +161,9 @@ impl State {
             label: Some("Main shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&shader_source)),
         });
+
+        let depth_texture_view =
+            State::create_depth_texture(&device, window_size.width, window_size.height);
 
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Main bind group layout"),
@@ -225,7 +230,13 @@ impl State {
                 cull_mode: Some(wgpu::Face::Back),
                 ..Default::default()
             },
-            depth_stencil: None,
+            depth_stencil: Some(DepthStencilState {
+                format: TextureFormat::Depth24Plus,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: StencilState::default(),
+                bias: DepthBiasState::default(),
+            }),
             multisample: MultisampleState::default(),
             multiview_mask: None,
             cache: None,
@@ -237,6 +248,7 @@ impl State {
             device,
             queue,
             bind_group,
+            depth_texture_view,
             render_pipeline,
             vertex_buffer,
             index_buffer,
@@ -260,6 +272,24 @@ impl State {
             present_mode: wgpu::PresentMode::AutoVsync,
         };
         self.surface.configure(&self.device, &config);
+    }
+
+    fn create_depth_texture(device: &Device, width: u32, height: u32) -> TextureView {
+        let depth_texture = device.create_texture(&TextureDescriptor {
+            size: Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: TextureFormat::Depth24Plus,
+            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TRANSIENT,
+            label: Some("Depth buffer"),
+            view_formats: &[],
+        });
+        depth_texture.create_view(&TextureViewDescriptor::default())
     }
 
     fn get_window(&self) -> &Window {
@@ -292,7 +322,14 @@ impl State {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture_view,
+                    depth_ops: Some(Operations {
+                        load: LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
                 multiview_mask: None,
