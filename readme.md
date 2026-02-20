@@ -18,8 +18,8 @@ Part 1:
 
 - [ ] WGPU usage:
   - [x] Add a depth buffer
+  - [x] Render multiple items using instancing
   - [ ] Setup basic camera movement
-  - [ ] Render multiple items using instancing
   - [ ] Refactor the wgpu usage into its own module in order to make drawing shapes very simple
   - [ ] Think about how compounds will be drawn, investigate what PubChem does
 

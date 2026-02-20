@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Quat, Vec3};
 use std::f32::consts::FRAC_PI_4;
 use std::fs::File;
 use std::io;
@@ -7,7 +7,6 @@ use std::mem::offset_of;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::{borrow::Cow, io::Read};
-use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Buffer, BufferAddress, BufferBindingType, BufferSize,
@@ -17,7 +16,7 @@ use wgpu::{
     RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
     ShaderStages, StencilState, Surface, TextureDescriptor, TextureFormat, TextureUsages,
     TextureView, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat,
-    VertexState, VertexStepMode, util::BufferInitDescriptor,
+    VertexState, VertexStepMode, util::BufferInitDescriptor, util::DeviceExt,
 };
 use winit::{
     application::ApplicationHandler,
@@ -26,6 +25,13 @@ use winit::{
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowAttributes, WindowId},
 };
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct InstanceRaw {
+    model_matrix: [[f32; 4]; 4],
+    color: [f32; 4],
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -87,6 +93,30 @@ fn create_vertex_data() -> (Vec<Vertex>, Vec<u16>) {
     (vertex_data.to_vec(), index_data.to_vec())
 }
 
+fn create_instance_data() -> Vec<InstanceRaw> {
+    let colors = [
+        [1.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 0.0, 1.0],
+        [0.0, 1.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 1.0],
+    ];
+
+    let mut instances = vec![];
+    for y in 0..2 {
+        for x in 0..2 {
+            let scale = Vec3::ONE;
+            let rotation = Quat::from_axis_angle(Vec3::new(1.0, 0.0, 0.0), FRAC_PI_4);
+            let translation = Vec3::new(-1.2 + 3.0 * x as f32, -1.0 + 3.0 * y as f32, 0.0);
+            let mat = Mat4::from_scale_rotation_translation(scale, rotation, translation);
+            instances.push(InstanceRaw {
+                model_matrix: mat.to_cols_array_2d(),
+                color: colors[y * 2 + x].into(),
+            });
+        }
+    }
+    instances
+}
+
 fn load_shader_source() -> Result<String, io::Error> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/shader.wgsl");
     let mut file = File::open(path)?;
@@ -113,6 +143,7 @@ struct State {
     depth_texture_view: TextureView,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
+    num_instances: u32,
     num_indices: u32,
     // `surface` should be the last to get dropped
     surface: Surface<'static>,
@@ -156,6 +187,14 @@ impl State {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
+        let instance_data = create_instance_data();
+        let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Instance buffer"),
+            contents: bytemuck::cast_slice(&instance_data),
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        });
+        let num_instances = 4;
+
         let shader_source = load_shader_source().unwrap();
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Main shader"),
@@ -167,25 +206,43 @@ impl State {
 
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Main bind group layout"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: BufferSize::new(64),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: BufferSize::new(64),
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
         });
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("Main bind group"),
             layout: &bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: instance_buffer.as_entire_binding(),
+                },
+            ],
         });
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -252,6 +309,7 @@ impl State {
             render_pipeline,
             vertex_buffer,
             index_buffer,
+            num_instances,
             num_indices,
             surface,
             surface_format,
@@ -339,7 +397,7 @@ impl State {
             pass.set_bind_group(0, &self.bind_group, &[]);
             pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            pass.draw_indexed(0..self.num_indices, 0, 0..self.num_instances);
         }
 
         self.queue.submit([encoder.finish()]);
