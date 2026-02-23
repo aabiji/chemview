@@ -1,23 +1,20 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Quat, Vec2, Vec3};
+use glam::Vec3;
 use std::collections::HashSet;
-use std::f32::consts::FRAC_PI_4;
 use std::fs::File;
 use std::io;
-use std::mem::offset_of;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::{borrow::Cow, io::Read};
+use wgpu::BindGroupLayout;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferAddress, BufferBindingType, BufferSize,
-    BufferUsages, DepthBiasState, DepthStencilState, Device, DeviceDescriptor, Extent3d,
-    FragmentState, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PrimitiveState,
-    Queue, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
-    ShaderStages, StencilState, Surface, TextureDescriptor, TextureFormat, TextureUsages,
-    TextureView, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat,
-    VertexState, VertexStepMode, util::BufferInitDescriptor, util::DeviceExt,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, Device,
+    DeviceDescriptor, Extent3d, FragmentState, MultisampleState, PipelineLayoutDescriptor,
+    PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderStages, Surface,
+    TextureDescriptor, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    VertexState, util::BufferInitDescriptor, util::DeviceExt,
 };
 use winit::{
     application::ApplicationHandler,
@@ -28,183 +25,27 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
+mod camera;
+use crate::camera::{Camera, Translate};
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct InstanceRaw {
-    model_matrix: [[f32; 4]; 4],
+pub struct SDFData {
+    // Position is in world space
+    position: [f32; 4],
     color: [f32; 4],
+    radius: f32,
+    _padding: [f32; 3],
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-struct Vertex {
-    pos: [f32; 4],
-    tex_coord: [f32; 2],
-}
-
-fn create_vertex_data() -> (Vec<Vertex>, Vec<u16>) {
-    let vertex = |x: i8, y: i8, z: i8, u: i8, v: i8| -> Vertex {
-        Vertex {
-            pos: [x as f32, y as f32, z as f32, 1.0],
-            tex_coord: [u as f32, v as f32],
+impl SDFData {
+    pub fn from(position: Vec3, color: Vec3, radius: f32) -> Self {
+        SDFData {
+            position: [position.x, position.y, position.z, 0.0],
+            color: [color.x, color.y, color.z, 1.0],
+            radius,
+            _padding: [0.0, 0.0, 0.0],
         }
-    };
-
-    let vertex_data = [
-        // top (0, 0, 1)
-        vertex(-1, -1, 1, 0, 0),
-        vertex(1, -1, 1, 1, 0),
-        vertex(1, 1, 1, 1, 1),
-        vertex(-1, 1, 1, 0, 1),
-        // bottom (0, 0, -1)
-        vertex(-1, 1, -1, 1, 0),
-        vertex(1, 1, -1, 0, 0),
-        vertex(1, -1, -1, 0, 1),
-        vertex(-1, -1, -1, 1, 1),
-        // right (1, 0, 0)
-        vertex(1, -1, -1, 0, 0),
-        vertex(1, 1, -1, 1, 0),
-        vertex(1, 1, 1, 1, 1),
-        vertex(1, -1, 1, 0, 1),
-        // left (-1, 0, 0)
-        vertex(-1, -1, 1, 1, 0),
-        vertex(-1, 1, 1, 0, 0),
-        vertex(-1, 1, -1, 0, 1),
-        vertex(-1, -1, -1, 1, 1),
-        // front (0, 1, 0)
-        vertex(1, 1, -1, 1, 0),
-        vertex(-1, 1, -1, 0, 0),
-        vertex(-1, 1, 1, 0, 1),
-        vertex(1, 1, 1, 1, 1),
-        // back (0, -1, 0)
-        vertex(1, -1, 1, 0, 0),
-        vertex(-1, -1, 1, 1, 0),
-        vertex(-1, -1, -1, 1, 1),
-        vertex(1, -1, -1, 0, 1),
-    ];
-
-    let index_data: &[u16] = &[
-        0, 1, 2, 2, 3, 0, // top
-        4, 5, 6, 6, 7, 4, // bottom
-        8, 9, 10, 10, 11, 8, // right
-        12, 13, 14, 14, 15, 12, // left
-        16, 17, 18, 18, 19, 16, // front
-        20, 21, 22, 22, 23, 20, // back
-    ];
-
-    (vertex_data.to_vec(), index_data.to_vec())
-}
-
-fn create_instance_data() -> Vec<InstanceRaw> {
-    let colors = [
-        [1.0, 1.0, 1.0, 1.0],
-        [1.0, 0.0, 0.0, 1.0],
-        [0.0, 1.0, 0.0, 1.0],
-        [0.0, 0.0, 1.0, 1.0],
-    ];
-
-    let mut instances = vec![];
-    for y in 0..2 {
-        for x in 0..2 {
-            let scale = Vec3::ONE;
-            let rotation = Quat::from_axis_angle(Vec3::new(1.0, 0.0, 0.0), FRAC_PI_4);
-            let translation = Vec3::new(-1.2 + 3.0 * x as f32, -1.0 + 3.0 * y as f32, 0.0);
-            let mat = Mat4::from_scale_rotation_translation(scale, rotation, translation);
-            instances.push(InstanceRaw {
-                model_matrix: mat.to_cols_array_2d(),
-                color: colors[y * 2 + x].into(),
-            });
-        }
-    }
-    instances
-}
-
-fn load_shader_source() -> Result<String, io::Error> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/shader.wgsl");
-    let mut file = File::open(path)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    Ok(contents)
-}
-
-enum Translate {
-    Up,
-    Down,
-    Left,
-    Right,
-    Forward,
-    Backward,
-}
-
-struct Camera {
-    pitch: f32,
-    yaw: f32,
-    field_of_view: f32,
-    speed: f32,
-    sensitivity: f32,
-    prev_mouse_pos: Vec2,
-    position: Vec3,
-    front: Vec3,
-}
-
-impl Camera {
-    fn new() -> Self {
-        Self {
-            pitch: 0.0,
-            yaw: 90.0,
-            field_of_view: 45.0,
-            speed: 1.0,
-            sensitivity: 0.05,
-            prev_mouse_pos: Vec2::new(0.0, 0.0),
-            front: Vec3::new(0.0, 0.0, 1.0),
-            position: Vec3::new(0.0, 0.0, -3.0),
-        }
-    }
-
-    fn matrix(&self, aspect_ratio: f32) -> Mat4 {
-        let fov = self.field_of_view.to_radians();
-        let projection = Mat4::perspective_rh(fov, aspect_ratio, 1.0, 100.0);
-        let view = Mat4::look_at_rh(self.position, self.position + self.front, Vec3::Y);
-        projection * view
-    }
-
-    fn translate(&mut self, m: Translate) {
-        let up = Vec3::Y;
-        let right = self.front.cross(up).normalize();
-        match m {
-            Translate::Up => self.position += up * self.speed,
-            Translate::Down => self.position -= up * self.speed,
-            Translate::Left => self.position -= right * self.speed,
-            Translate::Right => self.position += right * self.speed,
-            Translate::Forward => self.position += self.front * self.speed,
-            Translate::Backward => self.position -= self.front * self.speed,
-        }
-    }
-
-    fn rotate(&mut self, mouse_x: f32, mouse_y: f32, mouse_down: bool) {
-        let offset = Vec2::new(
-            (mouse_x - self.prev_mouse_pos.x) * self.sensitivity,
-            (self.prev_mouse_pos.y - mouse_y) * self.sensitivity,
-        );
-        self.prev_mouse_pos = Vec2::new(mouse_x, mouse_y);
-        if !mouse_down {
-            return;
-        }
-
-        self.yaw += offset.x;
-        self.pitch = (self.pitch + offset.y).clamp(-89.9, 89.9);
-
-        let front = Vec3::new(
-            self.yaw.to_radians().cos() * self.pitch.to_radians().cos(),
-            self.pitch.to_radians().sin(),
-            self.yaw.to_radians().sin() * self.pitch.to_radians().cos(),
-        );
-        self.front = front.normalize();
-    }
-
-    fn zoom(&mut self, inwards: bool) {
-        let offset = if inwards { -1.0 } else { 1.0 };
-        self.field_of_view = (self.field_of_view + offset).clamp(1.0, 45.0);
     }
 }
 
@@ -215,17 +56,13 @@ struct State {
     device: Device,
     queue: Queue,
     bind_group: BindGroup,
+    bind_group_layout: BindGroupLayout,
     render_pipeline: RenderPipeline,
 
-    depth_texture_view: TextureView,
-    msaa_texture_view: TextureView,
-
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    uniform_buffer: Buffer,
-
-    num_instances: u32,
-    num_indices: u32,
+    msaa_texture: TextureView,
+    sdf_data_buffer: Buffer,
+    sdf_data_count: Buffer,
+    view_uniform_buffer: Buffer,
 
     camera: Camera,
     mouse_down: bool,
@@ -251,74 +88,73 @@ impl State {
         let surface = instance.create_surface(window.clone()).unwrap();
         let surface_format = surface.get_capabilities(&adapter).formats[0];
 
-        let (vertices, indices) = create_vertex_data();
-        let num_indices = indices.len() as u32;
-
-        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Vertex buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: BufferUsages::VERTEX,
-        });
-
-        let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Index buffer"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: BufferUsages::INDEX,
-        });
-
-        let camera = Camera::new();
-        let ratio = window_size.width as f32 / window_size.height as f32;
-        let mouse_down = false;
-        let pressed_keys: HashSet<String> = HashSet::new();
-
-        let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Transformation matrix uniform buffer"),
-            contents: bytemuck::cast_slice(camera.matrix(ratio).as_ref()),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-
-        let instance_data = create_instance_data();
-        let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Instance buffer"),
-            contents: bytemuck::cast_slice(&instance_data),
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-        });
-        let num_instances = 4;
-
-        let shader_source = load_shader_source().unwrap();
+        let shader_source = State::load_shader_source().unwrap();
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Main shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&shader_source)),
         });
 
-        let depth_texture_view =
-            State::create_depth_texture(&device, window_size.width, window_size.height);
-
-        let msaa_texture_view = State::create_msaa_texture(
+        let msaa_texture = State::create_msaa_texture(
             &device,
             surface_format.add_srgb_suffix(),
             window_size.width,
             window_size.height,
         );
 
+        let camera = Camera::new();
+        let ratio = window_size.width as f32 / window_size.height as f32;
+        let mouse_down = false;
+        let pressed_keys: HashSet<String> = HashSet::new();
+
+        let view_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Transformation matrix uniform buffer"),
+            contents: bytemuck::cast_slice(camera.matrix(ratio).as_ref()),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        // These is initially filled with placeholder data
+        let sdf_data_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("SDF data storage buffer"),
+            contents: bytemuck::cast_slice(&[0.0, 0.0, 0.0, 0.0]),
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        });
+        let sdf_data_count = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("SDF data count uniform value"),
+            contents: bytemuck::cast_slice(&[0.0, 0.0, 0.0, 0.0]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Main bind group layout"),
             entries: &[
+                // View matrix
                 BindGroupLayoutEntry {
                     binding: 0,
                     visibility: ShaderStages::VERTEX,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(64),
+                        min_binding_size: None,
                     },
                     count: None,
                 },
+                // SDF Data
                 BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: ShaderStages::VERTEX,
+                    visibility: ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                // SDF data count
+                BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -328,16 +164,20 @@ impl State {
         });
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Main bind group"),
+            label: Some("Vertex shader bind group"),
             layout: &bind_group_layout,
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: uniform_buffer.as_entire_binding(),
+                    resource: view_uniform_buffer.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: instance_buffer.as_entire_binding(),
+                    resource: sdf_data_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: sdf_data_count.as_entire_binding(),
                 },
             ],
         });
@@ -348,30 +188,13 @@ impl State {
             immediate_size: 0,
         });
 
-        let vertex_buffers = [VertexBufferLayout {
-            array_stride: size_of::<Vertex>() as BufferAddress,
-            step_mode: VertexStepMode::Vertex,
-            attributes: &[
-                VertexAttribute {
-                    format: VertexFormat::Float32x4,
-                    offset: offset_of!(Vertex, pos) as u64,
-                    shader_location: 0,
-                },
-                VertexAttribute {
-                    format: VertexFormat::Float32x2,
-                    offset: offset_of!(Vertex, tex_coord) as u64,
-                    shader_location: 1,
-                },
-            ],
-        }];
-
         let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("Render pipeline"),
             layout: Some(&pipeline_layout),
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vertex_shader"),
-                buffers: &vertex_buffers,
+                buffers: &[], // No vertex buffer, since a fullscreen quad is drawn in the vertex shader
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
@@ -381,16 +204,10 @@ impl State {
                 compilation_options: Default::default(),
             }),
             primitive: PrimitiveState {
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 ..Default::default()
             },
-            depth_stencil: Some(DepthStencilState {
-                format: TextureFormat::Depth24Plus,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: StencilState::default(),
-                bias: DepthBiasState::default(),
-            }),
+            depth_stencil: None,
             multisample: MultisampleState {
                 count: 4,
                 ..MultisampleState::default()
@@ -399,33 +216,31 @@ impl State {
             cache: None,
         });
 
-        let state = State {
+        let mut state = State {
             window,
             window_size,
-
             device,
             queue,
             bind_group,
+            bind_group_layout,
             render_pipeline,
-
-            depth_texture_view,
-            msaa_texture_view,
-
-            vertex_buffer,
-            index_buffer,
-            uniform_buffer,
-
-            num_instances,
-            num_indices,
-
+            view_uniform_buffer,
+            sdf_data_buffer,
+            sdf_data_count,
+            msaa_texture,
             camera,
             mouse_down,
             pressed_keys,
-
             surface,
             surface_format,
         };
         state.configure_surface();
+        state.update_sdf_data(vec![
+            SDFData::from(Vec3::new(3.0, 1.0, 1.0), Vec3::new(0.0, 1.0, 0.0), 0.9),
+            SDFData::from(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 0.0, 0.0), 1.0),
+            SDFData::from(Vec3::new(0.0, 3.0, 0.0), Vec3::new(1.0, 1.0, 0.0), 0.23),
+            SDFData::from(Vec3::new(1.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 1.0), 0.5),
+        ]);
         state
     }
 
@@ -443,22 +258,12 @@ impl State {
         self.surface.configure(&self.device, &config);
     }
 
-    fn create_depth_texture(device: &Device, width: u32, height: u32) -> TextureView {
-        let texture = device.create_texture(&TextureDescriptor {
-            size: Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 4,
-            dimension: wgpu::TextureDimension::D2,
-            format: TextureFormat::Depth24Plus,
-            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TRANSIENT,
-            label: Some("Depth buffer"),
-            view_formats: &[],
-        });
-        texture.create_view(&TextureViewDescriptor::default())
+    fn load_shader_source() -> Result<String, io::Error> {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/shader.wgsl");
+        let mut file = File::open(path)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        Ok(contents)
     }
 
     fn create_msaa_texture(
@@ -502,12 +307,7 @@ impl State {
 
     fn resize(&mut self, size: PhysicalSize<u32>) {
         self.window_size = size;
-        self.depth_texture_view = State::create_depth_texture(
-            &self.device,
-            self.window_size.width,
-            self.window_size.height,
-        );
-        self.msaa_texture_view = State::create_msaa_texture(
+        self.msaa_texture = State::create_msaa_texture(
             &self.device,
             self.surface_format.add_srgb_suffix(),
             self.window_size.width,
@@ -517,11 +317,46 @@ impl State {
         self.configure_surface();
     }
 
+    fn update_sdf_data(&mut self, data: Vec<SDFData>) {
+        let count = data.len() as u32;
+
+        self.sdf_data_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("SDF data storage buffer"),
+            contents: bytemuck::cast_slice(&data),
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        });
+
+        self.sdf_data_count = self.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("SDF data count uniform value"),
+            contents: bytemuck::bytes_of(&count),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        self.bind_group = self.device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Vertex shader bind group"),
+            layout: &self.bind_group_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: self.view_uniform_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: self.sdf_data_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: self.sdf_data_count.as_entire_binding(),
+                },
+            ],
+        });
+    }
+
     fn update_camera_transform(&mut self) {
         let ratio = self.window_size.width as f32 / self.window_size.height as f32;
         let matrix = self.camera.matrix(ratio);
         self.queue.write_buffer(
-            &self.uniform_buffer,
+            &self.view_uniform_buffer,
             0,
             bytemuck::cast_slice(matrix.as_ref()),
         );
@@ -564,7 +399,7 @@ impl State {
             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Main render pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &self.msaa_texture_view,
+                    view: &self.msaa_texture,
                     resolve_target: Some(&surface_texture_view),
                     depth_slice: None,
                     ops: wgpu::Operations {
@@ -572,14 +407,7 @@ impl State {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                    view: &self.depth_texture_view,
-                    depth_ops: Some(Operations {
-                        load: LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
+                depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
                 multiview_mask: None,
@@ -587,9 +415,7 @@ impl State {
 
             pass.set_pipeline(&self.render_pipeline);
             pass.set_bind_group(0, &self.bind_group, &[]);
-            pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            pass.draw_indexed(0..self.num_indices, 0, 0..self.num_instances);
+            pass.draw(0..3, 0..1); // A ullscreen quad is being drawn in the vertex shader
         }
 
         self.queue.submit([encoder.finish()]);
