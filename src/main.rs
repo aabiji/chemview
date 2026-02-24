@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::Vec3;
+use glam::{Vec2, Vec3};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io;
@@ -32,21 +32,26 @@ use crate::camera::{Camera, Translate};
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct SDFData {
     // Position is in world space
-    position: [f32; 4],
-    color: [f32; 4],
-    radius: f32,
-    _padding: [f32; 3],
+    position: [f32; 3],
+    _padding: f32, // makes `position` 4 byte aligned
+    color: [f32; 3],
+    radius: f32, // conventiently padding `color`
 }
 
 impl SDFData {
     pub fn from(position: Vec3, color: Vec3, radius: f32) -> Self {
         SDFData {
-            position: [position.x, position.y, position.z, 0.0],
-            color: [color.x, color.y, color.z, 1.0],
+            position: [position.x, position.y, position.z],
+            _padding: 0.0,
+            color: [color.x, color.y, color.z],
             radius,
-            _padding: [0.0, 0.0, 0.0],
         }
     }
+}
+
+// Pad f32 or vec2 to the 16 byte aligned wgsl expects
+fn pad_vec2<T: Default>(a: T, b: T) -> [T; 4] {
+    [a, b, T::default(), T::default()]
 }
 
 struct State {
@@ -63,6 +68,8 @@ struct State {
     sdf_data_buffer: Buffer,
     sdf_data_count: Buffer,
     view_uniform_buffer: Buffer,
+    resolution_buffer: Buffer,
+    camera_pos_buffer: Buffer,
 
     camera: Camera,
     mouse_down: bool,
@@ -102,13 +109,12 @@ impl State {
         );
 
         let camera = Camera::new();
-        let ratio = window_size.width as f32 / window_size.height as f32;
         let mouse_down = false;
         let pressed_keys: HashSet<String> = HashSet::new();
 
         let view_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Transformation matrix uniform buffer"),
-            contents: bytemuck::cast_slice(camera.matrix(ratio).as_ref()),
+            contents: bytemuck::cast_slice(&camera.padded_basis()),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
@@ -118,8 +124,24 @@ impl State {
             contents: bytemuck::cast_slice(&[0.0, 0.0, 0.0, 0.0]),
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
+
         let sdf_data_count = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("SDF data count uniform value"),
+            contents: bytemuck::cast_slice(&pad_vec2::<u32>(0, 0)),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let resolution_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Window size uniform buffer"),
+            contents: bytemuck::cast_slice(&pad_vec2::<f32>(
+                window_size.width as f32,
+                window_size.height as f32,
+            )),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let camera_pos_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Camera position uniform buffer"),
             contents: bytemuck::cast_slice(&[0.0, 0.0, 0.0, 0.0]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
@@ -130,7 +152,7 @@ impl State {
                 // View matrix
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: ShaderStages::VERTEX,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -160,6 +182,28 @@ impl State {
                     },
                     count: None,
                 },
+                // Window resolution
+                BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                // Camera position
+                BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
 
@@ -178,6 +222,14 @@ impl State {
                 BindGroupEntry {
                     binding: 2,
                     resource: sdf_data_count.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: resolution_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: camera_pos_buffer.as_entire_binding(),
                 },
             ],
         });
@@ -227,6 +279,8 @@ impl State {
             view_uniform_buffer,
             sdf_data_buffer,
             sdf_data_count,
+            resolution_buffer,
+            camera_pos_buffer,
             msaa_texture,
             camera,
             mouse_down,
@@ -318,8 +372,6 @@ impl State {
     }
 
     fn update_sdf_data(&mut self, data: Vec<SDFData>) {
-        let count = data.len() as u32;
-
         self.sdf_data_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("SDF data storage buffer"),
             contents: bytemuck::cast_slice(&data),
@@ -328,7 +380,7 @@ impl State {
 
         self.sdf_data_count = self.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("SDF data count uniform value"),
-            contents: bytemuck::bytes_of(&count),
+            contents: bytemuck::cast_slice(&pad_vec2::<u32>(data.len() as u32, 0)),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
@@ -348,17 +400,36 @@ impl State {
                     binding: 2,
                     resource: self.sdf_data_count.as_entire_binding(),
                 },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: self.resolution_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: self.camera_pos_buffer.as_entire_binding(),
+                },
             ],
         });
     }
 
     fn update_camera_transform(&mut self) {
-        let ratio = self.window_size.width as f32 / self.window_size.height as f32;
-        let matrix = self.camera.matrix(ratio);
         self.queue.write_buffer(
             &self.view_uniform_buffer,
             0,
-            bytemuck::cast_slice(matrix.as_ref()),
+            bytemuck::cast_slice(&self.camera.padded_basis()),
+        );
+        self.queue.write_buffer(
+            &self.resolution_buffer,
+            0,
+            bytemuck::cast_slice(&pad_vec2::<f32>(
+                self.window_size.width as f32,
+                self.window_size.height as f32,
+            )),
+        );
+        self.queue.write_buffer(
+            &self.camera_pos_buffer,
+            0,
+            bytemuck::cast_slice(&self.camera.position()),
         );
     }
 

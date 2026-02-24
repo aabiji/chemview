@@ -1,4 +1,4 @@
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Vec2, Vec3};
 
 pub enum Translate {
     Up,
@@ -10,13 +10,13 @@ pub enum Translate {
 }
 
 pub struct Camera {
+    position: Vec3,
     pitch: f32,
     yaw: f32,
     field_of_view: f32,
     speed: f32,
     sensitivity: f32,
     prev_mouse_pos: Vec2,
-    position: Vec3,
     front: Vec3,
 }
 
@@ -34,11 +34,27 @@ impl Camera {
         }
     }
 
-    pub fn matrix(&self, aspect_ratio: f32) -> Mat4 {
-        let fov = self.field_of_view.to_radians();
-        // let projection = Mat4::perspective_rh(fov, aspect_ratio, 1.0, 100.0);
-        let view = Mat4::look_at_rh(self.position, self.position + self.front, Vec3::Y);
-        view
+    pub fn position(&self) -> [f32; 4] {
+        [self.position.x, self.position.y, self.position.z, 0.0]
+    }
+
+    pub fn padded_basis(&self) -> [f32; 12] {
+        let right = self.front.cross(Vec3::Y).normalize();
+        let up = right.cross(self.front).normalize();
+        [
+            right.x,
+            right.y,
+            right.z,
+            0.0,
+            up.x,
+            up.y,
+            up.z,
+            0.0,
+            self.front.x,
+            self.front.y,
+            self.front.z,
+            0.0, // right
+        ]
     }
 
     pub fn translate(&mut self, m: Translate) {
