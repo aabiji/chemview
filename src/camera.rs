@@ -22,14 +22,15 @@ pub struct Camera {
 
 impl Camera {
     pub fn new() -> Self {
+        // -z will be made to go into the screen
         Self {
             pitch: 0.0,
-            yaw: 90.0,
+            yaw: -90.0,
             field_of_view: 45.0,
-            speed: 1.0,
-            sensitivity: 0.05,
+            speed: 0.6,
+            sensitivity: 0.1,
             prev_mouse_pos: Vec2::new(0.0, 0.0),
-            front: Vec3::new(0.0, 0.0, 1.0),
+            front: Vec3::new(0.0, 0.0, -1.0),
             position: Vec3::new(0.0, 0.0, -3.0),
         }
     }
@@ -65,14 +66,14 @@ impl Camera {
             Translate::Down => self.position -= up * self.speed,
             Translate::Left => self.position -= right * self.speed,
             Translate::Right => self.position += right * self.speed,
-            Translate::Forward => self.position += self.front * self.speed,
-            Translate::Backward => self.position -= self.front * self.speed,
+            Translate::Forward => self.position -= self.front * self.speed,
+            Translate::Backward => self.position += self.front * self.speed,
         }
     }
 
     pub fn rotate(&mut self, mouse_x: f32, mouse_y: f32, mouse_down: bool) {
         let offset = Vec2::new(
-            (mouse_x - self.prev_mouse_pos.x) * self.sensitivity,
+            (self.prev_mouse_pos.x - mouse_x) * self.sensitivity,
             (self.prev_mouse_pos.y - mouse_y) * self.sensitivity,
         );
         self.prev_mouse_pos = Vec2::new(mouse_x, mouse_y);

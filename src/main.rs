@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec2, Vec3};
+use glam::Vec3;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io;
@@ -486,7 +486,7 @@ impl State {
 
             pass.set_pipeline(&self.render_pipeline);
             pass.set_bind_group(0, &self.bind_group, &[]);
-            pass.draw(0..3, 0..1); // A ullscreen quad is being drawn in the vertex shader
+            pass.draw(0..6, 0..1); // A ullscreen quad is being drawn in the vertex shader
         }
 
         self.queue.submit([encoder.finish()]);
