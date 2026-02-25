@@ -1,6 +1,8 @@
 use glam::{Vec2, Vec3};
+use std::collections::HashSet;
 
-pub enum Translate {
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub enum Action {
     Up,
     Down,
     Left,
@@ -16,7 +18,6 @@ pub struct Camera {
     field_of_view: f32,
     speed: f32,
     sensitivity: f32,
-    prev_mouse_pos: Vec2,
     front: Vec3,
 }
 
@@ -29,7 +30,6 @@ impl Camera {
             field_of_view: 45.0,
             speed: 0.6,
             sensitivity: 0.1,
-            prev_mouse_pos: Vec2::new(0.0, 0.0),
             front: Vec3::new(0.0, 0.0, -1.0),
             position: Vec3::new(0.0, 0.0, -3.0),
         }
@@ -58,31 +58,22 @@ impl Camera {
         ]
     }
 
-    pub fn translate(&mut self, m: Translate) {
+    pub fn translate(&mut self, m: Action) {
         let up = Vec3::Y;
         let right = self.front.cross(up).normalize();
         match m {
-            Translate::Up => self.position += up * self.speed,
-            Translate::Down => self.position -= up * self.speed,
-            Translate::Left => self.position -= right * self.speed,
-            Translate::Right => self.position += right * self.speed,
-            Translate::Forward => self.position -= self.front * self.speed,
-            Translate::Backward => self.position += self.front * self.speed,
+            Action::Up => self.position += up * self.speed,
+            Action::Down => self.position -= up * self.speed,
+            Action::Left => self.position -= right * self.speed,
+            Action::Right => self.position += right * self.speed,
+            Action::Forward => self.position -= self.front * self.speed,
+            Action::Backward => self.position += self.front * self.speed,
         }
     }
 
-    pub fn rotate(&mut self, mouse_x: f32, mouse_y: f32, mouse_down: bool) {
-        let offset = Vec2::new(
-            (self.prev_mouse_pos.x - mouse_x) * self.sensitivity,
-            (self.prev_mouse_pos.y - mouse_y) * self.sensitivity,
-        );
-        self.prev_mouse_pos = Vec2::new(mouse_x, mouse_y);
-        if !mouse_down {
-            return;
-        }
-
-        self.yaw += offset.x;
-        self.pitch = (self.pitch + offset.y).clamp(-89.9, 89.9);
+    pub fn rotate(&mut self, delta_x: f32, delta_y: f32) {
+        self.yaw += delta_x;
+        self.pitch = (self.pitch + delta_y).clamp(-89.9, 89.9);
 
         let front = Vec3::new(
             self.yaw.to_radians().cos() * self.pitch.to_radians().cos(),
@@ -95,5 +86,55 @@ impl Camera {
     pub fn zoom(&mut self, inwards: bool) {
         let offset = if inwards { -1.0 } else { 1.0 };
         self.field_of_view = (self.field_of_view + offset).clamp(1.0, 45.0);
+    }
+}
+
+pub struct CameraController {
+    pub camera: Camera,
+    actions: HashSet<Action>,
+    mouse_down: bool,
+    prev_mouse: Vec2,
+    mouse_delta: Vec2,
+}
+
+impl Default for CameraController {
+    fn default() -> Self {
+        Self {
+            camera: Camera::new(),
+            actions: HashSet::new(),
+            mouse_down: false,
+            prev_mouse: Vec2::new(0.0, 0.0),
+            mouse_delta: Vec2::new(0.0, 0.0),
+        }
+    }
+}
+
+impl CameraController {
+    pub fn set_mouse_pressed(&mut self, pressed: bool) {
+        self.mouse_down = pressed;
+    }
+
+    pub fn update_mouse_delta(&mut self, x: f32, y: f32) {
+        self.mouse_delta = Vec2::new(self.prev_mouse.x - x, self.prev_mouse.y - y);
+        self.prev_mouse = Vec2::new(x, y);
+    }
+
+    pub fn set_action(&mut self, action: Action, pressed: bool) {
+        if pressed {
+            self.actions.insert(action);
+        } else {
+            self.actions.remove(&action);
+        }
+    }
+
+    pub fn update_camera(&mut self) {
+        for action in &self.actions {
+            self.camera.translate(*action);
+        }
+
+        if self.mouse_down {
+            self.camera.rotate(self.mouse_delta.x, self.mouse_delta.y);
+            self.mouse_delta = Vec2::new(0.0, 0.0);
+        }
     }
 }
