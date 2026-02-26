@@ -11,13 +11,11 @@ pub enum Action {
     Backward,
 }
 
-pub struct Camera {
+struct Camera {
     position: Vec3,
     pitch: f32,
     yaw: f32,
     field_of_view: f32,
-    speed: f32,
-    sensitivity: f32,
     front: Vec3,
 }
 
@@ -28,8 +26,6 @@ impl Camera {
             pitch: 0.0,
             yaw: -90.0,
             field_of_view: 45.0,
-            speed: 0.6,
-            sensitivity: 0.1,
             front: Vec3::new(0.0, 0.0, -1.0),
             position: Vec3::new(0.0, 0.0, -3.0),
         }
@@ -58,20 +54,20 @@ impl Camera {
         ]
     }
 
-    pub fn translate(&mut self, m: Action) {
+    fn translate(&mut self, m: Action, speed: f32) {
         let up = Vec3::Y;
         let right = self.front.cross(up).normalize();
         match m {
-            Action::Up => self.position += up * self.speed,
-            Action::Down => self.position -= up * self.speed,
-            Action::Left => self.position -= right * self.speed,
-            Action::Right => self.position += right * self.speed,
-            Action::Forward => self.position -= self.front * self.speed,
-            Action::Backward => self.position += self.front * self.speed,
+            Action::Up => self.position -= up * speed,
+            Action::Down => self.position += up * speed,
+            Action::Left => self.position -= right * speed,
+            Action::Right => self.position += right * speed,
+            Action::Forward => self.position -= self.front * speed,
+            Action::Backward => self.position += self.front * speed,
         }
     }
 
-    pub fn rotate(&mut self, delta_x: f32, delta_y: f32) {
+    fn rotate(&mut self, delta_x: f32, delta_y: f32) {
         self.yaw += delta_x;
         self.pitch = (self.pitch + delta_y).clamp(-89.9, 89.9);
 
@@ -83,39 +79,50 @@ impl Camera {
         self.front = front.normalize();
     }
 
-    pub fn zoom(&mut self, inwards: bool) {
+    fn zoom(&mut self, inwards: bool) {
         let offset = if inwards { -1.0 } else { 1.0 };
         self.field_of_view = (self.field_of_view + offset).clamp(1.0, 45.0);
     }
 }
 
 pub struct CameraController {
-    pub camera: Camera,
+    camera: Camera,
     actions: HashSet<Action>,
     mouse_down: bool,
     prev_mouse: Vec2,
     mouse_delta: Vec2,
+    sensitivity: f32,
+    speed: f32,
 }
 
-impl Default for CameraController {
-    fn default() -> Self {
+impl CameraController {
+    pub fn new() -> Self {
         Self {
             camera: Camera::new(),
             actions: HashSet::new(),
             mouse_down: false,
             prev_mouse: Vec2::new(0.0, 0.0),
             mouse_delta: Vec2::new(0.0, 0.0),
+            sensitivity: 0.5,
+            speed: 0.6,
         }
     }
-}
 
-impl CameraController {
+    pub fn camera_state(&self) -> ([f32; 4], [f32; 12]) {
+        (self.camera.position(), self.camera.padded_basis())
+    }
+
+    pub fn zoom(&mut self, inwards: bool) {
+        self.camera.zoom(inwards);
+    }
+
     pub fn set_mouse_pressed(&mut self, pressed: bool) {
         self.mouse_down = pressed;
     }
 
     pub fn update_mouse_delta(&mut self, x: f32, y: f32) {
         self.mouse_delta = Vec2::new(self.prev_mouse.x - x, self.prev_mouse.y - y);
+        self.mouse_delta *= self.sensitivity;
         self.prev_mouse = Vec2::new(x, y);
     }
 
@@ -129,12 +136,11 @@ impl CameraController {
 
     pub fn update_camera(&mut self) {
         for action in &self.actions {
-            self.camera.translate(*action);
+            self.camera.translate(*action, self.speed);
         }
-
         if self.mouse_down {
             self.camera.rotate(self.mouse_delta.x, self.mouse_delta.y);
-            self.mouse_delta = Vec2::new(0.0, 0.0);
         }
+        self.mouse_delta = Vec2::new(0.0, 0.0);
     }
 }

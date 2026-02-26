@@ -1,8 +1,10 @@
-struct SDFData {
-    position: vec3<f32>,
-    _padding: f32, // Since structs need to be 16 byte aligned
-    color: vec3<f32>,
+struct ShapeData {
+    start_pos: vec4<f32>,
+    end_pos: vec4<f32>,
+    color: vec4<f32>,
+    shape_type: u32,
     radius: f32,
+    _pad: vec2<f32>,
 }
 
 struct SDFResult {
@@ -18,9 +20,9 @@ struct RaymarchResult {
 }
 
 // NOTE: Uniforms must be 16-byte aligned
-@group(0) @binding(0) var<uniform> view_matrix: mat3x4<f32>;
-@group(0) @binding(1) var<storage, read> sdf_data: array<SDFData>;
-@group(0) @binding(2) var<uniform> sdf_data_size: vec2<u32>;
+@group(0) @binding(0) var<uniform> view_matrix: mat4x4<f32>;
+@group(0) @binding(1) var<storage, read> shape_data: array<ShapeData>;
+@group(0) @binding(2) var<uniform> shape_data_size: vec2<u32>;
 @group(0) @binding(3) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(4) var<uniform> camera_pos: vec4<f32>;
 
@@ -39,10 +41,10 @@ fn vertex_shader(@builtin(vertex_index) vertex_index: u32) -> @builtin(position)
 fn scene_SDF(position: vec3<f32>) -> SDFResult {
     var result: SDFResult; // object with the min distance
     result.dist = 9999.9;
-    for (var i: u32 = 0u; i < sdf_data_size.x; i++) {
-        let o = sdf_data[i];
+    for (var i: u32 = 0u; i < shape_data_size.x; i++) {
+        let o = shape_data[i];
         // Sphere function for now
-        let dist = length(position - o.position) - o.radius;
+        let dist = length(position - o.start_pos.xyz) - o.radius;
         if (dist < result.dist) {
             result.dist = dist;
             result.index = i;
@@ -101,7 +103,7 @@ fn fragment_shader(@builtin(position) v: vec4<f32>) -> @location(0) vec4<f32> {
     // Basic phong lighting
     let light_pos = vec3<f32>(5.0, 0.0, -5.0);
     let light_color = vec3<f32>(1.0, 1.0, 1.0);
-    let obj_color = sdf_data[result.index].color;
+    let obj_color = shape_data[result.index].color.xyz;
     let shininess = 64.0;
 
     let ambient = 0.3 * obj_color;
