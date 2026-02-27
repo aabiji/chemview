@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 #[derive(Deserialize)]
 pub struct ElementInfo {
-    wwal_radius: i32,
+    waal_radius: i32,
     covalent_radius: [i32; 3],
     color: [f32; 3],
 }
@@ -21,15 +21,13 @@ pub struct Compound {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Atom {
-    x: f32,
-    y: f32,
-    z: f32,
+struct Atom {
+    position: Vec3,
     element: String,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Bond {
+struct Bond {
     src_index: usize,
     dst_index: usize,
     bond_type: BondType,
@@ -37,7 +35,7 @@ pub struct Bond {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum BondType {
+enum BondType {
     Single,
     Double,
     Triple,
@@ -49,7 +47,7 @@ pub enum BondType {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum BondTopology {
+enum BondTopology {
     RingOrChain,
     Ring,
     Chain,
@@ -146,9 +144,11 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
         let line = parse::<String>(&lines, 4 + i)?;
         let fields = split(&line, ' ', true);
         compound.atoms.push(Atom {
-            x: parse::<f32>(&fields, 0)?,
-            y: parse::<f32>(&fields, 1)?,
-            z: parse::<f32>(&fields, 2)?,
+            position: Vec3::new(
+                parse::<f32>(&fields, 0)?,
+                parse::<f32>(&fields, 1)?,
+                parse::<f32>(&fields, 2)?,
+            ),
             element: parse::<String>(&fields, 3)?,
         });
     }
@@ -196,10 +196,59 @@ pub fn parse_element_info(path: &PathBuf) -> Result<HashMap<String, ElementInfo>
     Ok(data)
 }
 
+/*
+TODO: Overhaul this:
+- Handle double, triple and aromatic bonds
+- Scale element radii properly
+    - Scale non linearly
+    - Scale the radius based off of the associated bond
+- What should the default size be if the size isn't defined?
+- What should the default color be if the color isn't defined?
+- Write tests for this function on different molecules and edge cases
+ */
+pub fn compound_to_shape(
+    compound: &Compound,
+    element_infos: &HashMap<String, ElementInfo>,
+) -> Vec<Shape> {
+    let max_covalent_radii = *element_infos
+        .values()
+        .flat_map(|e| e.covalent_radius.iter())
+        .filter(|&&r| r != -1)
+        .max()
+        .unwrap_or(&0);
+
+    let mut shapes: Vec<Shape> = compound
+        .atoms
+        .iter()
+        .map(|atom| {
+            let info = &element_infos[&atom.element];
+            let radius = (info.covalent_radius[0] as f32) / (max_covalent_radii as f32);
+
+            Shape::Sphere {
+                origin: atom.position,
+                color: Vec3::from_slice(&info.color),
+                radius,
+            }
+        })
+        .collect();
+    shapes.extend(compound.bonds.iter().map(|bond| {
+        let start = compound.atoms[bond.src_index].position;
+        let end = compound.atoms[bond.dst_index].position;
+        return Shape::Cylinder {
+            start,
+            end,
+            color: Vec3::new(0.67, 0.67, 0.67),
+            radius: 0.01,
+        };
+    }));
+    shapes
+}
+
 mod tests {
     #[test]
     fn test_parser() {
         use crate::parser::{Atom, Bond, BondTopology, BondType, Compound, parse_compound};
+        use glam::Vec3;
         let content = "783
                 -OEChem-02172615072D
 
@@ -215,15 +264,11 @@ mod tests {
             is_chiral: false,
             atoms: vec![
                 Atom {
-                    x: 2.0,
-                    y: 0.0,
-                    z: 0.0,
+                    position: Vec3::new(2.0, 0.0, 0.0),
                     element: "H".to_string(),
                 },
                 Atom {
-                    x: 3.0,
-                    y: 0.0,
-                    z: 0.0,
+                    position: Vec3::new(3.0, 0.0, 0.0),
                     element: "H".to_string(),
                 },
             ],

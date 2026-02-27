@@ -1,1536 +1,1536 @@
 {
   "H": {
     "color": [
-      255,
-      255,
-      255
+      1.0,
+      1.0,
+      1.0
     ],
-    "van_der_waal": 120,
-    "covalent": {
-      "single_bond": 32,
-      "double_bond": -1,
-      "triple_bond": -1
-    }
+    "waal_radius": 120,
+    "covalent_radius": [
+      32,
+      -1,
+      -1
+    ]
   },
   "He": {
     "color": [
-      217,
-      255,
-      255
+      0.8509803921568627,
+      1.0,
+      1.0
     ],
-    "van_der_waal": 140,
-    "covalent": {
-      "single_bond": 46,
-      "double_bond": -1,
-      "triple_bond": -1
-    }
+    "waal_radius": 140,
+    "covalent_radius": [
+      46,
+      -1,
+      -1
+    ]
   },
   "Li": {
     "color": [
-      204,
-      128,
-      255
+      0.8,
+      0.5019607843137255,
+      1.0
     ],
-    "van_der_waal": 182,
-    "covalent": {
-      "single_bond": 133,
-      "double_bond": 124,
-      "triple_bond": -1
-    }
+    "waal_radius": 182,
+    "covalent_radius": [
+      133,
+      124,
+      -1
+    ]
   },
   "Be": {
     "color": [
-      194,
-      255,
-      0
+      0.7607843137254902,
+      1.0,
+      0.0
     ],
-    "van_der_waal": 153,
-    "covalent": {
-      "single_bond": 102,
-      "double_bond": 90,
-      "triple_bond": 85
-    }
+    "waal_radius": 153,
+    "covalent_radius": [
+      102,
+      90,
+      85
+    ]
   },
   "B": {
     "color": [
-      255,
-      181,
-      181
+      1.0,
+      0.7098039215686275,
+      0.7098039215686275
     ],
-    "van_der_waal": 192,
-    "covalent": {
-      "single_bond": 85,
-      "double_bond": 78,
-      "triple_bond": 73
-    }
+    "waal_radius": 192,
+    "covalent_radius": [
+      85,
+      78,
+      73
+    ]
   },
   "C": {
     "color": [
-      144,
-      144,
-      144
+      0.5647058823529412,
+      0.5647058823529412,
+      0.5647058823529412
     ],
-    "van_der_waal": 170,
-    "covalent": {
-      "single_bond": 75,
-      "double_bond": 67,
-      "triple_bond": 60
-    }
+    "waal_radius": 170,
+    "covalent_radius": [
+      75,
+      67,
+      60
+    ]
   },
   "N": {
     "color": [
-      48,
-      80,
-      248
+      0.18823529411764706,
+      0.3137254901960784,
+      0.9725490196078431
     ],
-    "van_der_waal": 155,
-    "covalent": {
-      "single_bond": 71,
-      "double_bond": 60,
-      "triple_bond": 54
-    }
+    "waal_radius": 155,
+    "covalent_radius": [
+      71,
+      60,
+      54
+    ]
   },
   "O": {
     "color": [
-      255,
-      13,
-      13
+      1.0,
+      0.050980392156862744,
+      0.050980392156862744
     ],
-    "van_der_waal": 152,
-    "covalent": {
-      "single_bond": 63,
-      "double_bond": 57,
-      "triple_bond": 53
-    }
+    "waal_radius": 152,
+    "covalent_radius": [
+      63,
+      57,
+      53
+    ]
   },
   "F": {
     "color": [
-      144,
-      224,
-      80
+      0.5647058823529412,
+      0.8784313725490196,
+      0.3137254901960784
     ],
-    "van_der_waal": 135,
-    "covalent": {
-      "single_bond": 64,
-      "double_bond": 59,
-      "triple_bond": 53
-    }
+    "waal_radius": 135,
+    "covalent_radius": [
+      64,
+      59,
+      53
+    ]
   },
   "Ne": {
     "color": [
-      179,
-      227,
-      245
+      0.7019607843137254,
+      0.8901960784313725,
+      0.9607843137254902
     ],
-    "van_der_waal": 154,
-    "covalent": {
-      "single_bond": 67,
-      "double_bond": 96,
-      "triple_bond": -1
-    }
+    "waal_radius": 154,
+    "covalent_radius": [
+      67,
+      96,
+      -1
+    ]
   },
   "Na": {
     "color": [
-      171,
-      92,
-      242
+      0.6705882352941176,
+      0.3607843137254902,
+      0.9490196078431372
     ],
-    "van_der_waal": 227,
-    "covalent": {
-      "single_bond": 155,
-      "double_bond": 160,
-      "triple_bond": -1
-    }
+    "waal_radius": 227,
+    "covalent_radius": [
+      155,
+      160,
+      -1
+    ]
   },
   "Mg": {
     "color": [
-      138,
-      255,
-      0
+      0.5411764705882353,
+      1.0,
+      0.0
     ],
-    "van_der_waal": 173,
-    "covalent": {
-      "single_bond": 139,
-      "double_bond": 132,
-      "triple_bond": 127
-    }
+    "waal_radius": 173,
+    "covalent_radius": [
+      139,
+      132,
+      127
+    ]
   },
   "Al": {
     "color": [
-      191,
-      166,
-      166
+      0.7490196078431373,
+      0.6509803921568628,
+      0.6509803921568628
     ],
-    "van_der_waal": 184,
-    "covalent": {
-      "single_bond": 126,
-      "double_bond": 113,
-      "triple_bond": 111
-    }
+    "waal_radius": 184,
+    "covalent_radius": [
+      126,
+      113,
+      111
+    ]
   },
   "Si": {
     "color": [
-      240,
-      200,
-      160
+      0.9411764705882353,
+      0.7843137254901961,
+      0.6274509803921569
     ],
-    "van_der_waal": 210,
-    "covalent": {
-      "single_bond": 116,
-      "double_bond": 107,
-      "triple_bond": 102
-    }
+    "waal_radius": 210,
+    "covalent_radius": [
+      116,
+      107,
+      102
+    ]
   },
   "P": {
     "color": [
-      255,
-      128,
-      0
+      1.0,
+      0.5019607843137255,
+      0.0
     ],
-    "van_der_waal": 180,
-    "covalent": {
-      "single_bond": 111,
-      "double_bond": 102,
-      "triple_bond": 94
-    }
+    "waal_radius": 180,
+    "covalent_radius": [
+      111,
+      102,
+      94
+    ]
   },
   "S": {
     "color": [
-      255,
-      255,
-      48
+      1.0,
+      1.0,
+      0.18823529411764706
     ],
-    "van_der_waal": 180,
-    "covalent": {
-      "single_bond": 103,
-      "double_bond": 94,
-      "triple_bond": 95
-    }
+    "waal_radius": 180,
+    "covalent_radius": [
+      103,
+      94,
+      95
+    ]
   },
   "Cl": {
     "color": [
-      31,
-      240,
-      31
+      0.12156862745098039,
+      0.9411764705882353,
+      0.12156862745098039
     ],
-    "van_der_waal": 175,
-    "covalent": {
-      "single_bond": 99,
-      "double_bond": 95,
-      "triple_bond": 93
-    }
+    "waal_radius": 175,
+    "covalent_radius": [
+      99,
+      95,
+      93
+    ]
   },
   "Ar": {
     "color": [
-      128,
-      209,
-      227
+      0.5019607843137255,
+      0.8196078431372549,
+      0.8901960784313725
     ],
-    "van_der_waal": 188,
-    "covalent": {
-      "single_bond": 96,
-      "double_bond": 107,
-      "triple_bond": 96
-    }
+    "waal_radius": 188,
+    "covalent_radius": [
+      96,
+      107,
+      96
+    ]
   },
   "K": {
     "color": [
-      143,
-      64,
-      212
+      0.5607843137254902,
+      0.25098039215686274,
+      0.8313725490196079
     ],
-    "van_der_waal": 275,
-    "covalent": {
-      "single_bond": 196,
-      "double_bond": 193,
-      "triple_bond": -1
-    }
+    "waal_radius": 275,
+    "covalent_radius": [
+      196,
+      193,
+      -1
+    ]
   },
   "Ca": {
     "color": [
-      61,
-      255,
-      0
+      0.23921568627450981,
+      1.0,
+      0.0
     ],
-    "van_der_waal": 231,
-    "covalent": {
-      "single_bond": 171,
-      "double_bond": 147,
-      "triple_bond": 133
-    }
+    "waal_radius": 231,
+    "covalent_radius": [
+      171,
+      147,
+      133
+    ]
   },
   "Sc": {
     "color": [
-      230,
-      230,
-      230
+      0.9019607843137255,
+      0.9019607843137255,
+      0.9019607843137255
     ],
-    "van_der_waal": 211,
-    "covalent": {
-      "single_bond": 148,
-      "double_bond": 116,
-      "triple_bond": 114
-    }
+    "waal_radius": 211,
+    "covalent_radius": [
+      148,
+      116,
+      114
+    ]
   },
   "Ti": {
     "color": [
-      191,
-      194,
-      199
+      0.7490196078431373,
+      0.7607843137254902,
+      0.7803921568627451
     ],
-    "van_der_waal": 187,
-    "covalent": {
-      "single_bond": 136,
-      "double_bond": 117,
-      "triple_bond": 108
-    }
+    "waal_radius": 187,
+    "covalent_radius": [
+      136,
+      117,
+      108
+    ]
   },
   "V": {
     "color": [
-      166,
-      166,
-      171
+      0.6509803921568628,
+      0.6509803921568628,
+      0.6705882352941176
     ],
-    "van_der_waal": 179,
-    "covalent": {
-      "single_bond": 134,
-      "double_bond": 112,
-      "triple_bond": 106
-    }
+    "waal_radius": 179,
+    "covalent_radius": [
+      134,
+      112,
+      106
+    ]
   },
   "Cr": {
     "color": [
-      138,
-      153,
-      199
+      0.5411764705882353,
+      0.6,
+      0.7803921568627451
     ],
-    "van_der_waal": 189,
-    "covalent": {
-      "single_bond": 122,
-      "double_bond": 111,
-      "triple_bond": 103
-    }
+    "waal_radius": 189,
+    "covalent_radius": [
+      122,
+      111,
+      103
+    ]
   },
   "Mn": {
     "color": [
-      156,
-      122,
-      199
+      0.611764705882353,
+      0.47843137254901963,
+      0.7803921568627451
     ],
-    "van_der_waal": 197,
-    "covalent": {
-      "single_bond": 119,
-      "double_bond": 105,
-      "triple_bond": 103
-    }
+    "waal_radius": 197,
+    "covalent_radius": [
+      119,
+      105,
+      103
+    ]
   },
   "Fe": {
     "color": [
-      224,
-      102,
-      51
+      0.8784313725490196,
+      0.4,
+      0.2
     ],
-    "van_der_waal": 194,
-    "covalent": {
-      "single_bond": 116,
-      "double_bond": 109,
-      "triple_bond": 102
-    }
+    "waal_radius": 194,
+    "covalent_radius": [
+      116,
+      109,
+      102
+    ]
   },
   "Co": {
     "color": [
-      240,
-      144,
-      160
+      0.9411764705882353,
+      0.5647058823529412,
+      0.6274509803921569
     ],
-    "van_der_waal": 192,
-    "covalent": {
-      "single_bond": 111,
-      "double_bond": 103,
-      "triple_bond": 96
-    }
+    "waal_radius": 192,
+    "covalent_radius": [
+      111,
+      103,
+      96
+    ]
   },
   "Ni": {
     "color": [
-      80,
-      208,
-      80
+      0.3137254901960784,
+      0.8156862745098039,
+      0.3137254901960784
     ],
-    "van_der_waal": 163,
-    "covalent": {
-      "single_bond": 110,
-      "double_bond": 101,
-      "triple_bond": 101
-    }
+    "waal_radius": 163,
+    "covalent_radius": [
+      110,
+      101,
+      101
+    ]
   },
   "Cu": {
     "color": [
-      200,
-      128,
-      51
+      0.7843137254901961,
+      0.5019607843137255,
+      0.2
     ],
-    "van_der_waal": 140,
-    "covalent": {
-      "single_bond": 112,
-      "double_bond": 115,
-      "triple_bond": 120
-    }
+    "waal_radius": 140,
+    "covalent_radius": [
+      112,
+      115,
+      120
+    ]
   },
   "Zn": {
     "color": [
-      125,
-      128,
-      176
+      0.49019607843137253,
+      0.5019607843137255,
+      0.6901960784313725
     ],
-    "van_der_waal": 139,
-    "covalent": {
-      "single_bond": 118,
-      "double_bond": 120,
-      "triple_bond": -1
-    }
+    "waal_radius": 139,
+    "covalent_radius": [
+      118,
+      120,
+      -1
+    ]
   },
   "Ga": {
     "color": [
-      194,
-      143,
-      143
+      0.7607843137254902,
+      0.5607843137254902,
+      0.5607843137254902
     ],
-    "van_der_waal": 187,
-    "covalent": {
-      "single_bond": 124,
-      "double_bond": 117,
-      "triple_bond": 121
-    }
+    "waal_radius": 187,
+    "covalent_radius": [
+      124,
+      117,
+      121
+    ]
   },
   "Ge": {
     "color": [
-      102,
-      143,
-      143
+      0.4,
+      0.5607843137254902,
+      0.5607843137254902
     ],
-    "van_der_waal": 211,
-    "covalent": {
-      "single_bond": 121,
-      "double_bond": 111,
-      "triple_bond": 114
-    }
+    "waal_radius": 211,
+    "covalent_radius": [
+      121,
+      111,
+      114
+    ]
   },
   "As": {
     "color": [
-      189,
-      128,
-      227
+      0.7411764705882353,
+      0.5019607843137255,
+      0.8901960784313725
     ],
-    "van_der_waal": 185,
-    "covalent": {
-      "single_bond": 121,
-      "double_bond": 114,
-      "triple_bond": 106
-    }
+    "waal_radius": 185,
+    "covalent_radius": [
+      121,
+      114,
+      106
+    ]
   },
   "Se": {
     "color": [
-      255,
-      161,
-      0
+      1.0,
+      0.6313725490196078,
+      0.0
     ],
-    "van_der_waal": 190,
-    "covalent": {
-      "single_bond": 116,
-      "double_bond": 107,
-      "triple_bond": 107
-    }
+    "waal_radius": 190,
+    "covalent_radius": [
+      116,
+      107,
+      107
+    ]
   },
   "Br": {
     "color": [
-      166,
-      41,
-      41
+      0.6509803921568628,
+      0.1607843137254902,
+      0.1607843137254902
     ],
-    "van_der_waal": 183,
-    "covalent": {
-      "single_bond": 114,
-      "double_bond": 109,
-      "triple_bond": 110
-    }
+    "waal_radius": 183,
+    "covalent_radius": [
+      114,
+      109,
+      110
+    ]
   },
   "Kr": {
     "color": [
-      92,
-      184,
-      209
+      0.3607843137254902,
+      0.7215686274509804,
+      0.8196078431372549
     ],
-    "van_der_waal": 202,
-    "covalent": {
-      "single_bond": 117,
-      "double_bond": 121,
-      "triple_bond": 108
-    }
+    "waal_radius": 202,
+    "covalent_radius": [
+      117,
+      121,
+      108
+    ]
   },
   "Rb": {
     "color": [
-      112,
-      46,
-      176
+      0.4392156862745098,
+      0.1803921568627451,
+      0.6901960784313725
     ],
-    "van_der_waal": 303,
-    "covalent": {
-      "single_bond": 210,
-      "double_bond": 202,
-      "triple_bond": -1
-    }
+    "waal_radius": 303,
+    "covalent_radius": [
+      210,
+      202,
+      -1
+    ]
   },
   "Sr": {
     "color": [
-      0,
-      255,
-      0
+      0.0,
+      1.0,
+      0.0
     ],
-    "van_der_waal": 249,
-    "covalent": {
-      "single_bond": 185,
-      "double_bond": 157,
-      "triple_bond": 139
-    }
+    "waal_radius": 249,
+    "covalent_radius": [
+      185,
+      157,
+      139
+    ]
   },
   "Y": {
     "color": [
-      148,
-      255,
-      255
+      0.5803921568627451,
+      1.0,
+      1.0
     ],
-    "van_der_waal": 219,
-    "covalent": {
-      "single_bond": 163,
-      "double_bond": 130,
-      "triple_bond": 124
-    }
+    "waal_radius": 219,
+    "covalent_radius": [
+      163,
+      130,
+      124
+    ]
   },
   "Zr": {
     "color": [
-      148,
-      224,
-      224
+      0.5803921568627451,
+      0.8784313725490196,
+      0.8784313725490196
     ],
-    "van_der_waal": 186,
-    "covalent": {
-      "single_bond": 154,
-      "double_bond": 127,
-      "triple_bond": 121
-    }
+    "waal_radius": 186,
+    "covalent_radius": [
+      154,
+      127,
+      121
+    ]
   },
   "Nb": {
     "color": [
-      115,
-      194,
-      201
+      0.45098039215686275,
+      0.7607843137254902,
+      0.788235294117647
     ],
-    "van_der_waal": 207,
-    "covalent": {
-      "single_bond": 147,
-      "double_bond": 125,
-      "triple_bond": 116
-    }
+    "waal_radius": 207,
+    "covalent_radius": [
+      147,
+      125,
+      116
+    ]
   },
   "Mo": {
     "color": [
-      84,
-      181,
-      181
+      0.32941176470588235,
+      0.7098039215686275,
+      0.7098039215686275
     ],
-    "van_der_waal": 209,
-    "covalent": {
-      "single_bond": 138,
-      "double_bond": 121,
-      "triple_bond": 113
-    }
+    "waal_radius": 209,
+    "covalent_radius": [
+      138,
+      121,
+      113
+    ]
   },
   "Tc": {
     "color": [
-      59,
-      158,
-      158
+      0.23137254901960785,
+      0.6196078431372549,
+      0.6196078431372549
     ],
-    "van_der_waal": 209,
-    "covalent": {
-      "single_bond": 128,
-      "double_bond": 120,
-      "triple_bond": 110
-    }
+    "waal_radius": 209,
+    "covalent_radius": [
+      128,
+      120,
+      110
+    ]
   },
   "Ru": {
     "color": [
-      36,
-      143,
-      143
+      0.1411764705882353,
+      0.5607843137254902,
+      0.5607843137254902
     ],
-    "van_der_waal": 207,
-    "covalent": {
-      "single_bond": 125,
-      "double_bond": 114,
-      "triple_bond": 103
-    }
+    "waal_radius": 207,
+    "covalent_radius": [
+      125,
+      114,
+      103
+    ]
   },
   "Rh": {
     "color": [
-      10,
-      125,
-      140
+      0.0392156862745098,
+      0.49019607843137253,
+      0.5490196078431373
     ],
-    "van_der_waal": 195,
-    "covalent": {
-      "single_bond": 125,
-      "double_bond": 110,
-      "triple_bond": 106
-    }
+    "waal_radius": 195,
+    "covalent_radius": [
+      125,
+      110,
+      106
+    ]
   },
   "Pd": {
     "color": [
-      -1,
-      -1,
-      -1
+      1.0,
+      1.0,
+      1.0
     ],
-    "van_der_waal": 202,
-    "covalent": {
-      "single_bond": 120,
-      "double_bond": 117,
-      "triple_bond": 112
-    }
+    "waal_radius": 202,
+    "covalent_radius": [
+      120,
+      117,
+      112
+    ]
   },
   "Ag": {
     "color": [
-      192,
-      192,
-      192
+      0.7529411764705882,
+      0.7529411764705882,
+      0.7529411764705882
     ],
-    "van_der_waal": 172,
-    "covalent": {
-      "single_bond": 128,
-      "double_bond": 139,
-      "triple_bond": 137
-    }
+    "waal_radius": 172,
+    "covalent_radius": [
+      128,
+      139,
+      137
+    ]
   },
   "Cd": {
     "color": [
-      255,
-      217,
-      143
+      1.0,
+      0.8509803921568627,
+      0.5607843137254902
     ],
-    "van_der_waal": 158,
-    "covalent": {
-      "single_bond": 136,
-      "double_bond": 144,
-      "triple_bond": -1
-    }
+    "waal_radius": 158,
+    "covalent_radius": [
+      136,
+      144,
+      -1
+    ]
   },
   "In": {
     "color": [
-      166,
-      117,
-      115
+      0.6509803921568628,
+      0.4588235294117647,
+      0.45098039215686275
     ],
-    "van_der_waal": 193,
-    "covalent": {
-      "single_bond": 142,
-      "double_bond": 136,
-      "triple_bond": 146
-    }
+    "waal_radius": 193,
+    "covalent_radius": [
+      142,
+      136,
+      146
+    ]
   },
   "Sn": {
     "color": [
-      102,
-      128,
-      128
+      0.4,
+      0.5019607843137255,
+      0.5019607843137255
     ],
-    "van_der_waal": 217,
-    "covalent": {
-      "single_bond": 140,
-      "double_bond": 130,
-      "triple_bond": 132
-    }
+    "waal_radius": 217,
+    "covalent_radius": [
+      140,
+      130,
+      132
+    ]
   },
   "Sb": {
     "color": [
-      158,
-      99,
-      181
+      0.6196078431372549,
+      0.38823529411764707,
+      0.7098039215686275
     ],
-    "van_der_waal": 206,
-    "covalent": {
-      "single_bond": 140,
-      "double_bond": 133,
-      "triple_bond": 127
-    }
+    "waal_radius": 206,
+    "covalent_radius": [
+      140,
+      133,
+      127
+    ]
   },
   "Te": {
     "color": [
-      212,
-      122,
-      0
+      0.8313725490196079,
+      0.47843137254901963,
+      0.0
     ],
-    "van_der_waal": 206,
-    "covalent": {
-      "single_bond": 136,
-      "double_bond": 128,
-      "triple_bond": 121
-    }
+    "waal_radius": 206,
+    "covalent_radius": [
+      136,
+      128,
+      121
+    ]
   },
   "I": {
     "color": [
-      148,
-      0,
-      148
+      0.5803921568627451,
+      0.0,
+      0.5803921568627451
     ],
-    "van_der_waal": 198,
-    "covalent": {
-      "single_bond": 133,
-      "double_bond": 129,
-      "triple_bond": 125
-    }
+    "waal_radius": 198,
+    "covalent_radius": [
+      133,
+      129,
+      125
+    ]
   },
   "Xe": {
     "color": [
-      66,
-      158,
-      176
+      0.25882352941176473,
+      0.6196078431372549,
+      0.6901960784313725
     ],
-    "van_der_waal": 216,
-    "covalent": {
-      "single_bond": 131,
-      "double_bond": 135,
-      "triple_bond": 122
-    }
+    "waal_radius": 216,
+    "covalent_radius": [
+      131,
+      135,
+      122
+    ]
   },
   "Cs": {
     "color": [
-      87,
-      23,
-      143
+      0.3411764705882353,
+      0.09019607843137255,
+      0.5607843137254902
     ],
-    "van_der_waal": 343,
-    "covalent": {
-      "single_bond": 232,
-      "double_bond": 209,
-      "triple_bond": -1
-    }
+    "waal_radius": 343,
+    "covalent_radius": [
+      232,
+      209,
+      -1
+    ]
   },
   "Ba": {
     "color": [
-      0,
-      201,
-      0
+      0.0,
+      0.788235294117647,
+      0.0
     ],
-    "van_der_waal": 268,
-    "covalent": {
-      "single_bond": 196,
-      "double_bond": 161,
-      "triple_bond": 149
-    }
+    "waal_radius": 268,
+    "covalent_radius": [
+      196,
+      161,
+      149
+    ]
   },
   "La": {
     "color": [
-      112,
-      212,
-      255
+      0.4392156862745098,
+      0.8313725490196079,
+      1.0
     ],
-    "van_der_waal": 240,
-    "covalent": {
-      "single_bond": 180,
-      "double_bond": 139,
-      "triple_bond": 139
-    }
+    "waal_radius": 240,
+    "covalent_radius": [
+      180,
+      139,
+      139
+    ]
   },
   "Ce": {
     "color": [
-      255,
-      255,
-      199
+      1.0,
+      1.0,
+      0.7803921568627451
     ],
-    "van_der_waal": 235,
-    "covalent": {
-      "single_bond": 163,
-      "double_bond": 137,
-      "triple_bond": 131
-    }
+    "waal_radius": 235,
+    "covalent_radius": [
+      163,
+      137,
+      131
+    ]
   },
   "Pr": {
     "color": [
-      217,
-      255,
-      199
+      0.8509803921568627,
+      1.0,
+      0.7803921568627451
     ],
-    "van_der_waal": 239,
-    "covalent": {
-      "single_bond": 176,
-      "double_bond": 138,
-      "triple_bond": 128
-    }
+    "waal_radius": 239,
+    "covalent_radius": [
+      176,
+      138,
+      128
+    ]
   },
   "Nd": {
     "color": [
-      199,
-      255,
-      199
+      0.7803921568627451,
+      1.0,
+      0.7803921568627451
     ],
-    "van_der_waal": 229,
-    "covalent": {
-      "single_bond": 174,
-      "double_bond": 137,
-      "triple_bond": -1
-    }
+    "waal_radius": 229,
+    "covalent_radius": [
+      174,
+      137,
+      -1
+    ]
   },
   "Pm": {
     "color": [
-      163,
-      255,
-      199
+      0.6392156862745098,
+      1.0,
+      0.7803921568627451
     ],
-    "van_der_waal": 236,
-    "covalent": {
-      "single_bond": 173,
-      "double_bond": 135,
-      "triple_bond": -1
-    }
+    "waal_radius": 236,
+    "covalent_radius": [
+      173,
+      135,
+      -1
+    ]
   },
   "Sm": {
     "color": [
-      143,
-      255,
-      199
+      0.5607843137254902,
+      1.0,
+      0.7803921568627451
     ],
-    "van_der_waal": 229,
-    "covalent": {
-      "single_bond": 172,
-      "double_bond": 134,
-      "triple_bond": -1
-    }
+    "waal_radius": 229,
+    "covalent_radius": [
+      172,
+      134,
+      -1
+    ]
   },
   "Eu": {
     "color": [
-      97,
-      255,
-      199
+      0.3803921568627451,
+      1.0,
+      0.7803921568627451
     ],
-    "van_der_waal": 233,
-    "covalent": {
-      "single_bond": 168,
-      "double_bond": 134,
-      "triple_bond": -1
-    }
+    "waal_radius": 233,
+    "covalent_radius": [
+      168,
+      134,
+      -1
+    ]
   },
   "Gd": {
     "color": [
-      69,
-      255,
-      199
+      0.27058823529411763,
+      1.0,
+      0.7803921568627451
     ],
-    "van_der_waal": 237,
-    "covalent": {
-      "single_bond": 169,
-      "double_bond": 135,
-      "triple_bond": 132
-    }
+    "waal_radius": 237,
+    "covalent_radius": [
+      169,
+      135,
+      132
+    ]
   },
   "Tb": {
     "color": [
-      48,
-      255,
-      199
+      0.18823529411764706,
+      1.0,
+      0.7803921568627451
     ],
-    "van_der_waal": 221,
-    "covalent": {
-      "single_bond": 168,
-      "double_bond": 135,
-      "triple_bond": -1
-    }
+    "waal_radius": 221,
+    "covalent_radius": [
+      168,
+      135,
+      -1
+    ]
   },
   "Dy": {
     "color": [
-      31,
-      255,
-      199
+      0.12156862745098039,
+      1.0,
+      0.7803921568627451
     ],
-    "van_der_waal": 229,
-    "covalent": {
-      "single_bond": 167,
-      "double_bond": 133,
-      "triple_bond": -1
-    }
+    "waal_radius": 229,
+    "covalent_radius": [
+      167,
+      133,
+      -1
+    ]
   },
   "Ho": {
     "color": [
-      0,
-      255,
-      156
+      0.0,
+      1.0,
+      0.611764705882353
     ],
-    "van_der_waal": 216,
-    "covalent": {
-      "single_bond": 166,
-      "double_bond": 133,
-      "triple_bond": -1
-    }
+    "waal_radius": 216,
+    "covalent_radius": [
+      166,
+      133,
+      -1
+    ]
   },
   "Er": {
     "color": [
-      -1,
-      -1,
-      -1
+      1.0,
+      1.0,
+      1.0
     ],
-    "van_der_waal": 235,
-    "covalent": {
-      "single_bond": 165,
-      "double_bond": 133,
-      "triple_bond": -1
-    }
+    "waal_radius": 235,
+    "covalent_radius": [
+      165,
+      133,
+      -1
+    ]
   },
   "Tm": {
     "color": [
-      0,
-      212,
-      82
+      0.0,
+      0.8313725490196079,
+      0.3215686274509804
     ],
-    "van_der_waal": 227,
-    "covalent": {
-      "single_bond": 164,
-      "double_bond": 131,
-      "triple_bond": -1
-    }
+    "waal_radius": 227,
+    "covalent_radius": [
+      164,
+      131,
+      -1
+    ]
   },
   "Yb": {
     "color": [
-      0,
-      191,
-      56
+      0.0,
+      0.7490196078431373,
+      0.2196078431372549
     ],
-    "van_der_waal": 242,
-    "covalent": {
-      "single_bond": 170,
-      "double_bond": 129,
-      "triple_bond": -1
-    }
+    "waal_radius": 242,
+    "covalent_radius": [
+      170,
+      129,
+      -1
+    ]
   },
   "Lu": {
     "color": [
-      0,
-      171,
-      36
+      0.0,
+      0.6705882352941176,
+      0.1411764705882353
     ],
-    "van_der_waal": 221,
-    "covalent": {
-      "single_bond": 162,
-      "double_bond": 131,
-      "triple_bond": 131
-    }
+    "waal_radius": 221,
+    "covalent_radius": [
+      162,
+      131,
+      131
+    ]
   },
   "Hf": {
     "color": [
-      77,
-      194,
-      255
+      0.30196078431372547,
+      0.7607843137254902,
+      1.0
     ],
-    "van_der_waal": 212,
-    "covalent": {
-      "single_bond": 152,
-      "double_bond": 128,
-      "triple_bond": 122
-    }
+    "waal_radius": 212,
+    "covalent_radius": [
+      152,
+      128,
+      122
+    ]
   },
   "Ta": {
     "color": [
-      77,
-      166,
-      255
+      0.30196078431372547,
+      0.6509803921568628,
+      1.0
     ],
-    "van_der_waal": 217,
-    "covalent": {
-      "single_bond": 146,
-      "double_bond": 126,
-      "triple_bond": 119
-    }
+    "waal_radius": 217,
+    "covalent_radius": [
+      146,
+      126,
+      119
+    ]
   },
   "W": {
     "color": [
-      33,
-      148,
-      214
+      0.12941176470588237,
+      0.5803921568627451,
+      0.8392156862745098
     ],
-    "van_der_waal": 210,
-    "covalent": {
-      "single_bond": 137,
-      "double_bond": 120,
-      "triple_bond": 115
-    }
+    "waal_radius": 210,
+    "covalent_radius": [
+      137,
+      120,
+      115
+    ]
   },
   "Re": {
     "color": [
-      38,
-      125,
-      171
+      0.14901960784313725,
+      0.49019607843137253,
+      0.6705882352941176
     ],
-    "van_der_waal": 217,
-    "covalent": {
-      "single_bond": 131,
-      "double_bond": 119,
-      "triple_bond": 110
-    }
+    "waal_radius": 217,
+    "covalent_radius": [
+      131,
+      119,
+      110
+    ]
   },
   "Os": {
     "color": [
-      38,
-      102,
-      150
+      0.14901960784313725,
+      0.4,
+      0.5882352941176471
     ],
-    "van_der_waal": 216,
-    "covalent": {
-      "single_bond": 129,
-      "double_bond": 116,
-      "triple_bond": 109
-    }
+    "waal_radius": 216,
+    "covalent_radius": [
+      129,
+      116,
+      109
+    ]
   },
   "Ir": {
     "color": [
-      23,
-      84,
-      135
+      0.09019607843137255,
+      0.32941176470588235,
+      0.5294117647058824
     ],
-    "van_der_waal": 202,
-    "covalent": {
-      "single_bond": 122,
-      "double_bond": 115,
-      "triple_bond": 107
-    }
+    "waal_radius": 202,
+    "covalent_radius": [
+      122,
+      115,
+      107
+    ]
   },
   "Pt": {
     "color": [
-      208,
-      208,
-      224
+      0.8156862745098039,
+      0.8156862745098039,
+      0.8784313725490196
     ],
-    "van_der_waal": 209,
-    "covalent": {
-      "single_bond": 123,
-      "double_bond": 112,
-      "triple_bond": 110
-    }
+    "waal_radius": 209,
+    "covalent_radius": [
+      123,
+      112,
+      110
+    ]
   },
   "Au": {
     "color": [
-      255,
-      209,
-      35
+      1.0,
+      0.8196078431372549,
+      0.13725490196078433
     ],
-    "van_der_waal": 166,
-    "covalent": {
-      "single_bond": 124,
-      "double_bond": 121,
-      "triple_bond": 123
-    }
+    "waal_radius": 166,
+    "covalent_radius": [
+      124,
+      121,
+      123
+    ]
   },
   "Hg": {
     "color": [
-      184,
-      184,
-      208
+      0.7215686274509804,
+      0.7215686274509804,
+      0.8156862745098039
     ],
-    "van_der_waal": 209,
-    "covalent": {
-      "single_bond": 133,
-      "double_bond": 142,
-      "triple_bond": -1
-    }
+    "waal_radius": 209,
+    "covalent_radius": [
+      133,
+      142,
+      -1
+    ]
   },
   "Tl": {
     "color": [
-      166,
-      84,
-      77
+      0.6509803921568628,
+      0.32941176470588235,
+      0.30196078431372547
     ],
-    "van_der_waal": 196,
-    "covalent": {
-      "single_bond": 144,
-      "double_bond": 142,
-      "triple_bond": 150
-    }
+    "waal_radius": 196,
+    "covalent_radius": [
+      144,
+      142,
+      150
+    ]
   },
   "Pb": {
     "color": [
-      87,
-      89,
-      97
+      0.3411764705882353,
+      0.34901960784313724,
+      0.3803921568627451
     ],
-    "van_der_waal": 202,
-    "covalent": {
-      "single_bond": 144,
-      "double_bond": 135,
-      "triple_bond": 137
-    }
+    "waal_radius": 202,
+    "covalent_radius": [
+      144,
+      135,
+      137
+    ]
   },
   "Bi": {
     "color": [
-      158,
-      79,
-      181
+      0.6196078431372549,
+      0.30980392156862746,
+      0.7098039215686275
     ],
-    "van_der_waal": 207,
-    "covalent": {
-      "single_bond": 151,
-      "double_bond": 141,
-      "triple_bond": 135
-    }
+    "waal_radius": 207,
+    "covalent_radius": [
+      151,
+      141,
+      135
+    ]
   },
   "Po": {
     "color": [
-      171,
-      92,
-      0
+      0.6705882352941176,
+      0.3607843137254902,
+      0.0
     ],
-    "van_der_waal": 197,
-    "covalent": {
-      "single_bond": 145,
-      "double_bond": 135,
-      "triple_bond": 129
-    }
+    "waal_radius": 197,
+    "covalent_radius": [
+      145,
+      135,
+      129
+    ]
   },
   "At": {
     "color": [
-      117,
-      79,
-      69
+      0.4588235294117647,
+      0.30980392156862746,
+      0.27058823529411763
     ],
-    "van_der_waal": 202,
-    "covalent": {
-      "single_bond": 147,
-      "double_bond": 138,
-      "triple_bond": 138
-    }
+    "waal_radius": 202,
+    "covalent_radius": [
+      147,
+      138,
+      138
+    ]
   },
   "Rn": {
     "color": [
-      66,
-      130,
-      150
+      0.25882352941176473,
+      0.5098039215686274,
+      0.5882352941176471
     ],
-    "van_der_waal": 220,
-    "covalent": {
-      "single_bond": 142,
-      "double_bond": 145,
-      "triple_bond": 133
-    }
+    "waal_radius": 220,
+    "covalent_radius": [
+      142,
+      145,
+      133
+    ]
   },
   "Fr": {
     "color": [
-      66,
-      0,
-      102
+      0.25882352941176473,
+      0.0,
+      0.4
     ],
-    "van_der_waal": 348,
-    "covalent": {
-      "single_bond": 223,
-      "double_bond": 218,
-      "triple_bond": -1
-    }
+    "waal_radius": 348,
+    "covalent_radius": [
+      223,
+      218,
+      -1
+    ]
   },
   "Ra": {
     "color": [
-      0,
-      125,
-      0
+      0.0,
+      0.49019607843137253,
+      0.0
     ],
-    "van_der_waal": 283,
-    "covalent": {
-      "single_bond": 201,
-      "double_bond": 173,
-      "triple_bond": 159
-    }
+    "waal_radius": 283,
+    "covalent_radius": [
+      201,
+      173,
+      159
+    ]
   },
   "Ac": {
     "color": [
-      112,
-      171,
-      250
+      0.4392156862745098,
+      0.6705882352941176,
+      0.9803921568627451
     ],
-    "van_der_waal": 260,
-    "covalent": {
-      "single_bond": 186,
-      "double_bond": 153,
-      "triple_bond": 140
-    }
+    "waal_radius": 260,
+    "covalent_radius": [
+      186,
+      153,
+      140
+    ]
   },
   "Th": {
     "color": [
-      0,
-      186,
-      255
+      0.0,
+      0.7294117647058823,
+      1.0
     ],
-    "van_der_waal": 237,
-    "covalent": {
-      "single_bond": 175,
-      "double_bond": 143,
-      "triple_bond": 136
-    }
+    "waal_radius": 237,
+    "covalent_radius": [
+      175,
+      143,
+      136
+    ]
   },
   "Pa": {
     "color": [
-      0,
-      161,
-      255
+      0.0,
+      0.6313725490196078,
+      1.0
     ],
-    "van_der_waal": 243,
-    "covalent": {
-      "single_bond": 169,
-      "double_bond": 138,
-      "triple_bond": 129
-    }
+    "waal_radius": 243,
+    "covalent_radius": [
+      169,
+      138,
+      129
+    ]
   },
   "U": {
     "color": [
-      0,
-      143,
-      255
+      0.0,
+      0.5607843137254902,
+      1.0
     ],
-    "van_der_waal": 240,
-    "covalent": {
-      "single_bond": 170,
-      "double_bond": 134,
-      "triple_bond": 118
-    }
+    "waal_radius": 240,
+    "covalent_radius": [
+      170,
+      134,
+      118
+    ]
   },
   "Np": {
     "color": [
-      0,
-      128,
-      255
+      0.0,
+      0.5019607843137255,
+      1.0
     ],
-    "van_der_waal": 221,
-    "covalent": {
-      "single_bond": 171,
-      "double_bond": 136,
-      "triple_bond": 116
-    }
+    "waal_radius": 221,
+    "covalent_radius": [
+      171,
+      136,
+      116
+    ]
   },
   "Pu": {
     "color": [
-      0,
-      107,
-      255
+      0.0,
+      0.4196078431372549,
+      1.0
     ],
-    "van_der_waal": 243,
-    "covalent": {
-      "single_bond": 172,
-      "double_bond": 135,
-      "triple_bond": -1
-    }
+    "waal_radius": 243,
+    "covalent_radius": [
+      172,
+      135,
+      -1
+    ]
   },
   "Am": {
     "color": [
-      84,
-      92,
-      242
+      0.32941176470588235,
+      0.3607843137254902,
+      0.9490196078431372
     ],
-    "van_der_waal": 244,
-    "covalent": {
-      "single_bond": 166,
-      "double_bond": 135,
-      "triple_bond": -1
-    }
+    "waal_radius": 244,
+    "covalent_radius": [
+      166,
+      135,
+      -1
+    ]
   },
   "Cm": {
     "color": [
-      120,
-      92,
-      227
+      0.47058823529411764,
+      0.3607843137254902,
+      0.8901960784313725
     ],
-    "van_der_waal": 245,
-    "covalent": {
-      "single_bond": 166,
-      "double_bond": 136,
-      "triple_bond": -1
-    }
+    "waal_radius": 245,
+    "covalent_radius": [
+      166,
+      136,
+      -1
+    ]
   },
   "Bk": {
     "color": [
-      138,
-      79,
-      227
+      0.5411764705882353,
+      0.30980392156862746,
+      0.8901960784313725
     ],
-    "van_der_waal": 244,
-    "covalent": {
-      "single_bond": 168,
-      "double_bond": 139,
-      "triple_bond": -1
-    }
+    "waal_radius": 244,
+    "covalent_radius": [
+      168,
+      139,
+      -1
+    ]
   },
   "Cf": {
     "color": [
-      161,
-      54,
-      212
+      0.6313725490196078,
+      0.21176470588235294,
+      0.8313725490196079
     ],
-    "van_der_waal": 245,
-    "covalent": {
-      "single_bond": 168,
-      "double_bond": 140,
-      "triple_bond": -1
-    }
+    "waal_radius": 245,
+    "covalent_radius": [
+      168,
+      140,
+      -1
+    ]
   },
   "Es": {
     "color": [
-      179,
-      31,
-      212
+      0.7019607843137254,
+      0.12156862745098039,
+      0.8313725490196079
     ],
-    "van_der_waal": 245,
-    "covalent": {
-      "single_bond": 165,
-      "double_bond": 140,
-      "triple_bond": -1
-    }
+    "waal_radius": 245,
+    "covalent_radius": [
+      165,
+      140,
+      -1
+    ]
   },
   "Fm": {
     "color": [
-      179,
-      31,
-      186
+      0.7019607843137254,
+      0.12156862745098039,
+      0.7294117647058823
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 167,
-      "double_bond": -1,
-      "triple_bond": -1
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      167,
+      -1,
+      -1
+    ]
   },
   "Md": {
     "color": [
-      179,
-      13,
-      166
+      0.7019607843137254,
+      0.050980392156862744,
+      0.6509803921568628
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 173,
-      "double_bond": 139,
-      "triple_bond": -1
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      173,
+      139,
+      -1
+    ]
   },
   "No": {
     "color": [
-      189,
-      13,
-      135
+      0.7411764705882353,
+      0.050980392156862744,
+      0.5294117647058824
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 176,
-      "double_bond": 159,
-      "triple_bond": -1
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      176,
+      159,
+      -1
+    ]
   },
   "Lr": {
     "color": [
-      199,
-      0,
-      102
+      0.7803921568627451,
+      0.0,
+      0.4
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 161,
-      "double_bond": 141,
-      "triple_bond": -1
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      161,
+      141,
+      -1
+    ]
   },
   "Rf": {
     "color": [
-      204,
-      0,
-      89
+      0.8,
+      0.0,
+      0.34901960784313724
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 157,
-      "double_bond": 140,
-      "triple_bond": 131
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      157,
+      140,
+      131
+    ]
   },
   "Db": {
     "color": [
-      209,
-      0,
-      79
+      0.8196078431372549,
+      0.0,
+      0.30980392156862746
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 149,
-      "double_bond": 136,
-      "triple_bond": 126
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      149,
+      136,
+      126
+    ]
   },
   "Sg": {
     "color": [
-      217,
-      0,
-      69
+      0.8509803921568627,
+      0.0,
+      0.27058823529411763
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 143,
-      "double_bond": 128,
-      "triple_bond": 121
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      143,
+      128,
+      121
+    ]
   },
   "Bh": {
     "color": [
-      224,
-      0,
-      56
+      0.8784313725490196,
+      0.0,
+      0.2196078431372549
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 141,
-      "double_bond": 128,
-      "triple_bond": 119
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      141,
+      128,
+      119
+    ]
   },
   "Hs": {
     "color": [
-      230,
-      0,
-      46
+      0.9019607843137255,
+      0.0,
+      0.1803921568627451
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 134,
-      "double_bond": 125,
-      "triple_bond": 118
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      134,
+      125,
+      118
+    ]
   },
   "Mt": {
     "color": [
-      235,
-      0,
-      38
+      0.9215686274509803,
+      0.0,
+      0.14901960784313725
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 129,
-      "double_bond": 125,
-      "triple_bond": 113
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      129,
+      125,
+      113
+    ]
   },
   "Ds": {
     "color": [
-      -1,
-      -1,
-      -1
+      1.0,
+      1.0,
+      1.0
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 128,
-      "double_bond": 116,
-      "triple_bond": 112
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      128,
+      116,
+      112
+    ]
   },
   "Rg": {
     "color": [
-      -1,
-      -1,
-      -1
+      1.0,
+      1.0,
+      1.0
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 121,
-      "double_bond": 116,
-      "triple_bond": 118
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      121,
+      116,
+      118
+    ]
   },
   "Cn": {
     "color": [
-      -1,
-      -1,
-      -1
+      1.0,
+      1.0,
+      1.0
     ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 122,
-      "double_bond": 137,
-      "triple_bond": 130
-    }
+    "waal_radius": -1,
+    "covalent_radius": [
+      122,
+      137,
+      130
+    ]
   },
   "Nh": {
     "color": [
-      -1,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "waal_radius": -1,
+    "covalent_radius": [
+      136,
       -1,
       -1
-    ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 136,
-      "double_bond": -1,
-      "triple_bond": -1
-    }
+    ]
   },
   "Fl": {
     "color": [
-      -1,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "waal_radius": -1,
+    "covalent_radius": [
+      143,
       -1,
       -1
-    ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 143,
-      "double_bond": -1,
-      "triple_bond": -1
-    }
+    ]
   },
   "Mc": {
     "color": [
-      -1,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "waal_radius": -1,
+    "covalent_radius": [
+      162,
       -1,
       -1
-    ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 162,
-      "double_bond": -1,
-      "triple_bond": -1
-    }
+    ]
   },
   "Lv": {
     "color": [
-      -1,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "waal_radius": -1,
+    "covalent_radius": [
+      175,
       -1,
       -1
-    ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 175,
-      "double_bond": -1,
-      "triple_bond": -1
-    }
+    ]
   },
   "Ts": {
     "color": [
-      -1,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "waal_radius": -1,
+    "covalent_radius": [
+      165,
       -1,
       -1
-    ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 165,
-      "double_bond": -1,
-      "triple_bond": -1
-    }
+    ]
   },
   "Og": {
     "color": [
-      -1,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "waal_radius": -1,
+    "covalent_radius": [
+      157,
       -1,
       -1
-    ],
-    "van_der_waal": -1,
-    "covalent": {
-      "single_bond": 157,
-      "double_bond": -1,
-      "triple_bond": -1
-    }
+    ]
   }
 }

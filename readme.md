@@ -27,16 +27,22 @@ Part 1:
   - [x] Refactor the wgpu usage. Write a comment explaining the overall architecture (how we are drawing objects)
   - [x] Think about how compounds will be drawn, investigate what PubChem does
 
-- [ ] Render the atoms and bonds in a molecule
-  - [ ] Map the parsed `Compound` into `Vec<Shape>`
-  - [ ] Ball and stick model
-  - [ ] Space filling model
-    - [ ] Using van der Waal radii
-    - [ ] Each atom/bond should have their own color, using the CPK colorscheme
+- [x] Nice graphics:
+  - [x] Shader which highlights edges and provides nice phong lighting in the scene
+  - [x] 3D camera panning and zooming in/out
 
-- [ ] Nice graphics:
-  - [ ] Shader which highlights edges and provides nice phong lighting in the scene
-  - [ ] 3D camera panning and zooming in/out
+- [ ] Improve the visualization
+  - [ ] Integrate with egui to render fps
+  - [ ] View a new molecule using a file dialog
+  - [ ] Optimize the SDF rendering (what we have is way too slow)
+  - [ ] Improve camera movement, panning and zooming
+
+
+- [ ] Render the atoms and bonds in a molecule
+  - [x] Map the parsed `Compound` into `Vec<Shape>`
+  - [ ] Feature complete ball and stick model
+  - [ ] Feature complete space filling model
+
 
 Part 2:
 - mmCIF parser, test with real data from the Protein Data Bank

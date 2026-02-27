@@ -33,15 +33,19 @@ data = {}
 for row in response1["Table"]["Row"]:
     element, hex, radius_str = row["Cell"][1], row["Cell"][4], row["Cell"][7]
 
-    color_rgb = [-1, -1, -1]
+    color_rgb = [1.0, 1.0, 1.0]
     if len(hex) == 6:
-        color_rgb = [int(hex[0:2], 16), int(hex[2:4], 16), int(hex[4:6], 16)]
+        color_rgb = [
+            int(hex[0:2], 16) / 255.0,
+            int(hex[2:4], 16) / 255.0,
+            int(hex[4:6], 16) / 255.0,
+        ]
 
     van_der_wall = -1
     if len(radius_str) > 0:
         van_der_wall = int(radius_str)
 
-    data[element] = {"color": color_rgb, "van_der_waal": van_der_wall}
+    data[element] = {"color": color_rgb, "waal_radius": van_der_wall}
 
 # 2. Extract covalent radii from Chem Libretexts
 response2 = requests.get(url2, headers=headers)
@@ -56,11 +60,11 @@ for row in table_rows:
     element = cells[1]
     if element in names:
         element = names[element]
-    data[element]["covalent"] = {
-        "single_bond": -1 if single_bond == "-" else int(single_bond),
-        "double_bond": -1 if double_bond == "-" else int(double_bond),
-        "triple_bond": -1 if triple_bond == "-" else int(triple_bond),
-    }
+    data[element]["covalent_radius"] = [
+        -1 if single_bond == "-" else int(single_bond),
+        -1 if double_bond == "-" else int(double_bond),
+        -1 if triple_bond == "-" else int(triple_bond),
+    ]
 
 with open(output_file, "w") as file:
     file.write(json.dumps(data, indent=2))

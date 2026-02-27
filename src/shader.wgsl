@@ -38,13 +38,48 @@ fn vertex_shader(@builtin(vertex_index) vertex_index: u32) -> @builtin(position)
     return vec4<f32>(pos, 0.0, 1.0);
 }
 
+// The next two SDF functions were taken from: https://iquilezles.org/articles/distfunctions/
+fn sphere_sdf(p: vec3<f32>, center: vec3<f32>, r: f32) -> f32 {
+  return length(p - center) - r;
+}
+
+fn cylinder_sdf(p: vec3<f32>, a: vec3<f32>, b: vec3<f32>, r: f32) -> f32 {
+    let ba: vec3<f32> = b - a;
+    let pa: vec3<f32> = p - a;
+    let baba: f32 = dot(ba, ba);
+    let paba: f32 = dot(pa, ba);
+    let x: f32 = length(pa * baba - ba * paba) - r * baba;
+    let y: f32 = abs(paba - baba * 0.5) - baba * 0.5;
+    let x2: f32 = x * x;
+    let y2: f32 = y * y * baba;
+
+    var d: f32;
+    if (max(x, y) < 0.0) {
+        d = -min(x2, y2);
+    } else {
+        var ex: f32 = 0.0;
+        var ey: f32 = 0.0;
+        if x > 0.0 { ex = x2; }
+        if y > 0.0 { ey = y2; }
+        d = ex + ey;
+    }
+
+    return sign(d) * sqrt(abs(d)) / baba;
+}
+
 fn scene_SDF(position: vec3<f32>) -> SDFResult {
     var result: SDFResult; // object with the min distance
     result.dist = 9999.9;
     for (var i: u32 = 0u; i < shape_data_size.x; i++) {
         let o = shape_data[i];
-        // Sphere function for now
-        let dist = length(position - o.start_pos.xyz) - o.radius;
+
+        var dist: f32;
+        if (o.shape_type == 0) {
+            dist = sphere_sdf(position, o.start_pos.xyz, o.radius);
+        } else {
+            dist = cylinder_sdf(position, o.start_pos.xyz, o.end_pos.xyz, o.radius);
+        }
+
         if (dist < result.dist) {
             result.dist = dist;
             result.index = i;

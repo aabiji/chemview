@@ -1,7 +1,6 @@
-use glam::Vec3;
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{borrow::Cow, io::Read};
 use wgpu::{
     BindGroup, Buffer, Device, DeviceDescriptor, Extent3d, FragmentState, MultisampleState,
     PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPassColorAttachment,
@@ -314,36 +313,15 @@ impl ApplicationHandler for App {
 
         let mut state = pollster::block_on(State::new(window.clone()));
 
-        let mut contents = String::new();
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/h2.sdf");
-        std::fs::File::open(path)
-            .unwrap()
-            .read_to_string(&mut contents)
-            .unwrap();
-        let compound = parser::parse_compound(&contents);
+        // Initialize compound rendering
+        let sdf_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/methane.sdf");
+        let info_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/element_data.json");
+        let info = parser::parse_element_info(&info_path).unwrap();
+        let contents = std::fs::read_to_string(&sdf_path).unwrap();
+        let compound = parser::parse_compound(&contents).unwrap();
+        let shapes = parser::compound_to_shape(&compound, &info);
+        state.set_shapes_data(shapes);
 
-        state.set_shapes_data(vec![
-            Shape::Sphere {
-                origin: Vec3::new(3.0, 1.0, 1.0),
-                color: Vec3::new(0.0, 1.0, 0.0),
-                radius: 0.9,
-            },
-            Shape::Sphere {
-                origin: Vec3::new(0.0, 0.0, 0.0),
-                color: Vec3::new(1.0, 0.0, 0.0),
-                radius: 1.0,
-            },
-            Shape::Sphere {
-                origin: Vec3::new(0.0, 3.0, 0.0),
-                color: Vec3::new(1.0, 1.0, 0.0),
-                radius: 0.23,
-            },
-            Shape::Sphere {
-                origin: Vec3::new(1.0, 0.0, 2.0),
-                color: Vec3::new(0.0, 0.0, 1.0),
-                radius: 0.5,
-            },
-        ]);
         self.state = Some(state);
         window.request_redraw();
     }
