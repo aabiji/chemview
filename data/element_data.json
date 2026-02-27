@@ -1,0 +1,1536 @@
+{
+  "H": {
+    "color": [
+      255,
+      255,
+      255
+    ],
+    "van_der_waal": 120,
+    "covalent": {
+      "single_bond": 32,
+      "double_bond": -1,
+      "triple_bond": -1
+    }
+  },
+  "He": {
+    "color": [
+      217,
+      255,
+      255
+    ],
+    "van_der_waal": 140,
+    "covalent": {
+      "single_bond": 46,
+      "double_bond": -1,
+      "triple_bond": -1
+    }
+  },
+  "Li": {
+    "color": [
+      204,
+      128,
+      255
+    ],
+    "van_der_waal": 182,
+    "covalent": {
+      "single_bond": 133,
+      "double_bond": 124,
+      "triple_bond": -1
+    }
+  },
+  "Be": {
+    "color": [
+      194,
+      255,
+      0
+    ],
+    "van_der_waal": 153,
+    "covalent": {
+      "single_bond": 102,
+      "double_bond": 90,
+      "triple_bond": 85
+    }
+  },
+  "B": {
+    "color": [
+      255,
+      181,
+      181
+    ],
+    "van_der_waal": 192,
+    "covalent": {
+      "single_bond": 85,
+      "double_bond": 78,
+      "triple_bond": 73
+    }
+  },
+  "C": {
+    "color": [
+      144,
+      144,
+      144
+    ],
+    "van_der_waal": 170,
+    "covalent": {
+      "single_bond": 75,
+      "double_bond": 67,
+      "triple_bond": 60
+    }
+  },
+  "N": {
+    "color": [
+      48,
+      80,
+      248
+    ],
+    "van_der_waal": 155,
+    "covalent": {
+      "single_bond": 71,
+      "double_bond": 60,
+      "triple_bond": 54
+    }
+  },
+  "O": {
+    "color": [
+      255,
+      13,
+      13
+    ],
+    "van_der_waal": 152,
+    "covalent": {
+      "single_bond": 63,
+      "double_bond": 57,
+      "triple_bond": 53
+    }
+  },
+  "F": {
+    "color": [
+      144,
+      224,
+      80
+    ],
+    "van_der_waal": 135,
+    "covalent": {
+      "single_bond": 64,
+      "double_bond": 59,
+      "triple_bond": 53
+    }
+  },
+  "Ne": {
+    "color": [
+      179,
+      227,
+      245
+    ],
+    "van_der_waal": 154,
+    "covalent": {
+      "single_bond": 67,
+      "double_bond": 96,
+      "triple_bond": -1
+    }
+  },
+  "Na": {
+    "color": [
+      171,
+      92,
+      242
+    ],
+    "van_der_waal": 227,
+    "covalent": {
+      "single_bond": 155,
+      "double_bond": 160,
+      "triple_bond": -1
+    }
+  },
+  "Mg": {
+    "color": [
+      138,
+      255,
+      0
+    ],
+    "van_der_waal": 173,
+    "covalent": {
+      "single_bond": 139,
+      "double_bond": 132,
+      "triple_bond": 127
+    }
+  },
+  "Al": {
+    "color": [
+      191,
+      166,
+      166
+    ],
+    "van_der_waal": 184,
+    "covalent": {
+      "single_bond": 126,
+      "double_bond": 113,
+      "triple_bond": 111
+    }
+  },
+  "Si": {
+    "color": [
+      240,
+      200,
+      160
+    ],
+    "van_der_waal": 210,
+    "covalent": {
+      "single_bond": 116,
+      "double_bond": 107,
+      "triple_bond": 102
+    }
+  },
+  "P": {
+    "color": [
+      255,
+      128,
+      0
+    ],
+    "van_der_waal": 180,
+    "covalent": {
+      "single_bond": 111,
+      "double_bond": 102,
+      "triple_bond": 94
+    }
+  },
+  "S": {
+    "color": [
+      255,
+      255,
+      48
+    ],
+    "van_der_waal": 180,
+    "covalent": {
+      "single_bond": 103,
+      "double_bond": 94,
+      "triple_bond": 95
+    }
+  },
+  "Cl": {
+    "color": [
+      31,
+      240,
+      31
+    ],
+    "van_der_waal": 175,
+    "covalent": {
+      "single_bond": 99,
+      "double_bond": 95,
+      "triple_bond": 93
+    }
+  },
+  "Ar": {
+    "color": [
+      128,
+      209,
+      227
+    ],
+    "van_der_waal": 188,
+    "covalent": {
+      "single_bond": 96,
+      "double_bond": 107,
+      "triple_bond": 96
+    }
+  },
+  "K": {
+    "color": [
+      143,
+      64,
+      212
+    ],
+    "van_der_waal": 275,
+    "covalent": {
+      "single_bond": 196,
+      "double_bond": 193,
+      "triple_bond": -1
+    }
+  },
+  "Ca": {
+    "color": [
+      61,
+      255,
+      0
+    ],
+    "van_der_waal": 231,
+    "covalent": {
+      "single_bond": 171,
+      "double_bond": 147,
+      "triple_bond": 133
+    }
+  },
+  "Sc": {
+    "color": [
+      230,
+      230,
+      230
+    ],
+    "van_der_waal": 211,
+    "covalent": {
+      "single_bond": 148,
+      "double_bond": 116,
+      "triple_bond": 114
+    }
+  },
+  "Ti": {
+    "color": [
+      191,
+      194,
+      199
+    ],
+    "van_der_waal": 187,
+    "covalent": {
+      "single_bond": 136,
+      "double_bond": 117,
+      "triple_bond": 108
+    }
+  },
+  "V": {
+    "color": [
+      166,
+      166,
+      171
+    ],
+    "van_der_waal": 179,
+    "covalent": {
+      "single_bond": 134,
+      "double_bond": 112,
+      "triple_bond": 106
+    }
+  },
+  "Cr": {
+    "color": [
+      138,
+      153,
+      199
+    ],
+    "van_der_waal": 189,
+    "covalent": {
+      "single_bond": 122,
+      "double_bond": 111,
+      "triple_bond": 103
+    }
+  },
+  "Mn": {
+    "color": [
+      156,
+      122,
+      199
+    ],
+    "van_der_waal": 197,
+    "covalent": {
+      "single_bond": 119,
+      "double_bond": 105,
+      "triple_bond": 103
+    }
+  },
+  "Fe": {
+    "color": [
+      224,
+      102,
+      51
+    ],
+    "van_der_waal": 194,
+    "covalent": {
+      "single_bond": 116,
+      "double_bond": 109,
+      "triple_bond": 102
+    }
+  },
+  "Co": {
+    "color": [
+      240,
+      144,
+      160
+    ],
+    "van_der_waal": 192,
+    "covalent": {
+      "single_bond": 111,
+      "double_bond": 103,
+      "triple_bond": 96
+    }
+  },
+  "Ni": {
+    "color": [
+      80,
+      208,
+      80
+    ],
+    "van_der_waal": 163,
+    "covalent": {
+      "single_bond": 110,
+      "double_bond": 101,
+      "triple_bond": 101
+    }
+  },
+  "Cu": {
+    "color": [
+      200,
+      128,
+      51
+    ],
+    "van_der_waal": 140,
+    "covalent": {
+      "single_bond": 112,
+      "double_bond": 115,
+      "triple_bond": 120
+    }
+  },
+  "Zn": {
+    "color": [
+      125,
+      128,
+      176
+    ],
+    "van_der_waal": 139,
+    "covalent": {
+      "single_bond": 118,
+      "double_bond": 120,
+      "triple_bond": -1
+    }
+  },
+  "Ga": {
+    "color": [
+      194,
+      143,
+      143
+    ],
+    "van_der_waal": 187,
+    "covalent": {
+      "single_bond": 124,
+      "double_bond": 117,
+      "triple_bond": 121
+    }
+  },
+  "Ge": {
+    "color": [
+      102,
+      143,
+      143
+    ],
+    "van_der_waal": 211,
+    "covalent": {
+      "single_bond": 121,
+      "double_bond": 111,
+      "triple_bond": 114
+    }
+  },
+  "As": {
+    "color": [
+      189,
+      128,
+      227
+    ],
+    "van_der_waal": 185,
+    "covalent": {
+      "single_bond": 121,
+      "double_bond": 114,
+      "triple_bond": 106
+    }
+  },
+  "Se": {
+    "color": [
+      255,
+      161,
+      0
+    ],
+    "van_der_waal": 190,
+    "covalent": {
+      "single_bond": 116,
+      "double_bond": 107,
+      "triple_bond": 107
+    }
+  },
+  "Br": {
+    "color": [
+      166,
+      41,
+      41
+    ],
+    "van_der_waal": 183,
+    "covalent": {
+      "single_bond": 114,
+      "double_bond": 109,
+      "triple_bond": 110
+    }
+  },
+  "Kr": {
+    "color": [
+      92,
+      184,
+      209
+    ],
+    "van_der_waal": 202,
+    "covalent": {
+      "single_bond": 117,
+      "double_bond": 121,
+      "triple_bond": 108
+    }
+  },
+  "Rb": {
+    "color": [
+      112,
+      46,
+      176
+    ],
+    "van_der_waal": 303,
+    "covalent": {
+      "single_bond": 210,
+      "double_bond": 202,
+      "triple_bond": -1
+    }
+  },
+  "Sr": {
+    "color": [
+      0,
+      255,
+      0
+    ],
+    "van_der_waal": 249,
+    "covalent": {
+      "single_bond": 185,
+      "double_bond": 157,
+      "triple_bond": 139
+    }
+  },
+  "Y": {
+    "color": [
+      148,
+      255,
+      255
+    ],
+    "van_der_waal": 219,
+    "covalent": {
+      "single_bond": 163,
+      "double_bond": 130,
+      "triple_bond": 124
+    }
+  },
+  "Zr": {
+    "color": [
+      148,
+      224,
+      224
+    ],
+    "van_der_waal": 186,
+    "covalent": {
+      "single_bond": 154,
+      "double_bond": 127,
+      "triple_bond": 121
+    }
+  },
+  "Nb": {
+    "color": [
+      115,
+      194,
+      201
+    ],
+    "van_der_waal": 207,
+    "covalent": {
+      "single_bond": 147,
+      "double_bond": 125,
+      "triple_bond": 116
+    }
+  },
+  "Mo": {
+    "color": [
+      84,
+      181,
+      181
+    ],
+    "van_der_waal": 209,
+    "covalent": {
+      "single_bond": 138,
+      "double_bond": 121,
+      "triple_bond": 113
+    }
+  },
+  "Tc": {
+    "color": [
+      59,
+      158,
+      158
+    ],
+    "van_der_waal": 209,
+    "covalent": {
+      "single_bond": 128,
+      "double_bond": 120,
+      "triple_bond": 110
+    }
+  },
+  "Ru": {
+    "color": [
+      36,
+      143,
+      143
+    ],
+    "van_der_waal": 207,
+    "covalent": {
+      "single_bond": 125,
+      "double_bond": 114,
+      "triple_bond": 103
+    }
+  },
+  "Rh": {
+    "color": [
+      10,
+      125,
+      140
+    ],
+    "van_der_waal": 195,
+    "covalent": {
+      "single_bond": 125,
+      "double_bond": 110,
+      "triple_bond": 106
+    }
+  },
+  "Pd": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": 202,
+    "covalent": {
+      "single_bond": 120,
+      "double_bond": 117,
+      "triple_bond": 112
+    }
+  },
+  "Ag": {
+    "color": [
+      192,
+      192,
+      192
+    ],
+    "van_der_waal": 172,
+    "covalent": {
+      "single_bond": 128,
+      "double_bond": 139,
+      "triple_bond": 137
+    }
+  },
+  "Cd": {
+    "color": [
+      255,
+      217,
+      143
+    ],
+    "van_der_waal": 158,
+    "covalent": {
+      "single_bond": 136,
+      "double_bond": 144,
+      "triple_bond": -1
+    }
+  },
+  "In": {
+    "color": [
+      166,
+      117,
+      115
+    ],
+    "van_der_waal": 193,
+    "covalent": {
+      "single_bond": 142,
+      "double_bond": 136,
+      "triple_bond": 146
+    }
+  },
+  "Sn": {
+    "color": [
+      102,
+      128,
+      128
+    ],
+    "van_der_waal": 217,
+    "covalent": {
+      "single_bond": 140,
+      "double_bond": 130,
+      "triple_bond": 132
+    }
+  },
+  "Sb": {
+    "color": [
+      158,
+      99,
+      181
+    ],
+    "van_der_waal": 206,
+    "covalent": {
+      "single_bond": 140,
+      "double_bond": 133,
+      "triple_bond": 127
+    }
+  },
+  "Te": {
+    "color": [
+      212,
+      122,
+      0
+    ],
+    "van_der_waal": 206,
+    "covalent": {
+      "single_bond": 136,
+      "double_bond": 128,
+      "triple_bond": 121
+    }
+  },
+  "I": {
+    "color": [
+      148,
+      0,
+      148
+    ],
+    "van_der_waal": 198,
+    "covalent": {
+      "single_bond": 133,
+      "double_bond": 129,
+      "triple_bond": 125
+    }
+  },
+  "Xe": {
+    "color": [
+      66,
+      158,
+      176
+    ],
+    "van_der_waal": 216,
+    "covalent": {
+      "single_bond": 131,
+      "double_bond": 135,
+      "triple_bond": 122
+    }
+  },
+  "Cs": {
+    "color": [
+      87,
+      23,
+      143
+    ],
+    "van_der_waal": 343,
+    "covalent": {
+      "single_bond": 232,
+      "double_bond": 209,
+      "triple_bond": -1
+    }
+  },
+  "Ba": {
+    "color": [
+      0,
+      201,
+      0
+    ],
+    "van_der_waal": 268,
+    "covalent": {
+      "single_bond": 196,
+      "double_bond": 161,
+      "triple_bond": 149
+    }
+  },
+  "La": {
+    "color": [
+      112,
+      212,
+      255
+    ],
+    "van_der_waal": 240,
+    "covalent": {
+      "single_bond": 180,
+      "double_bond": 139,
+      "triple_bond": 139
+    }
+  },
+  "Ce": {
+    "color": [
+      255,
+      255,
+      199
+    ],
+    "van_der_waal": 235,
+    "covalent": {
+      "single_bond": 163,
+      "double_bond": 137,
+      "triple_bond": 131
+    }
+  },
+  "Pr": {
+    "color": [
+      217,
+      255,
+      199
+    ],
+    "van_der_waal": 239,
+    "covalent": {
+      "single_bond": 176,
+      "double_bond": 138,
+      "triple_bond": 128
+    }
+  },
+  "Nd": {
+    "color": [
+      199,
+      255,
+      199
+    ],
+    "van_der_waal": 229,
+    "covalent": {
+      "single_bond": 174,
+      "double_bond": 137,
+      "triple_bond": -1
+    }
+  },
+  "Pm": {
+    "color": [
+      163,
+      255,
+      199
+    ],
+    "van_der_waal": 236,
+    "covalent": {
+      "single_bond": 173,
+      "double_bond": 135,
+      "triple_bond": -1
+    }
+  },
+  "Sm": {
+    "color": [
+      143,
+      255,
+      199
+    ],
+    "van_der_waal": 229,
+    "covalent": {
+      "single_bond": 172,
+      "double_bond": 134,
+      "triple_bond": -1
+    }
+  },
+  "Eu": {
+    "color": [
+      97,
+      255,
+      199
+    ],
+    "van_der_waal": 233,
+    "covalent": {
+      "single_bond": 168,
+      "double_bond": 134,
+      "triple_bond": -1
+    }
+  },
+  "Gd": {
+    "color": [
+      69,
+      255,
+      199
+    ],
+    "van_der_waal": 237,
+    "covalent": {
+      "single_bond": 169,
+      "double_bond": 135,
+      "triple_bond": 132
+    }
+  },
+  "Tb": {
+    "color": [
+      48,
+      255,
+      199
+    ],
+    "van_der_waal": 221,
+    "covalent": {
+      "single_bond": 168,
+      "double_bond": 135,
+      "triple_bond": -1
+    }
+  },
+  "Dy": {
+    "color": [
+      31,
+      255,
+      199
+    ],
+    "van_der_waal": 229,
+    "covalent": {
+      "single_bond": 167,
+      "double_bond": 133,
+      "triple_bond": -1
+    }
+  },
+  "Ho": {
+    "color": [
+      0,
+      255,
+      156
+    ],
+    "van_der_waal": 216,
+    "covalent": {
+      "single_bond": 166,
+      "double_bond": 133,
+      "triple_bond": -1
+    }
+  },
+  "Er": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": 235,
+    "covalent": {
+      "single_bond": 165,
+      "double_bond": 133,
+      "triple_bond": -1
+    }
+  },
+  "Tm": {
+    "color": [
+      0,
+      212,
+      82
+    ],
+    "van_der_waal": 227,
+    "covalent": {
+      "single_bond": 164,
+      "double_bond": 131,
+      "triple_bond": -1
+    }
+  },
+  "Yb": {
+    "color": [
+      0,
+      191,
+      56
+    ],
+    "van_der_waal": 242,
+    "covalent": {
+      "single_bond": 170,
+      "double_bond": 129,
+      "triple_bond": -1
+    }
+  },
+  "Lu": {
+    "color": [
+      0,
+      171,
+      36
+    ],
+    "van_der_waal": 221,
+    "covalent": {
+      "single_bond": 162,
+      "double_bond": 131,
+      "triple_bond": 131
+    }
+  },
+  "Hf": {
+    "color": [
+      77,
+      194,
+      255
+    ],
+    "van_der_waal": 212,
+    "covalent": {
+      "single_bond": 152,
+      "double_bond": 128,
+      "triple_bond": 122
+    }
+  },
+  "Ta": {
+    "color": [
+      77,
+      166,
+      255
+    ],
+    "van_der_waal": 217,
+    "covalent": {
+      "single_bond": 146,
+      "double_bond": 126,
+      "triple_bond": 119
+    }
+  },
+  "W": {
+    "color": [
+      33,
+      148,
+      214
+    ],
+    "van_der_waal": 210,
+    "covalent": {
+      "single_bond": 137,
+      "double_bond": 120,
+      "triple_bond": 115
+    }
+  },
+  "Re": {
+    "color": [
+      38,
+      125,
+      171
+    ],
+    "van_der_waal": 217,
+    "covalent": {
+      "single_bond": 131,
+      "double_bond": 119,
+      "triple_bond": 110
+    }
+  },
+  "Os": {
+    "color": [
+      38,
+      102,
+      150
+    ],
+    "van_der_waal": 216,
+    "covalent": {
+      "single_bond": 129,
+      "double_bond": 116,
+      "triple_bond": 109
+    }
+  },
+  "Ir": {
+    "color": [
+      23,
+      84,
+      135
+    ],
+    "van_der_waal": 202,
+    "covalent": {
+      "single_bond": 122,
+      "double_bond": 115,
+      "triple_bond": 107
+    }
+  },
+  "Pt": {
+    "color": [
+      208,
+      208,
+      224
+    ],
+    "van_der_waal": 209,
+    "covalent": {
+      "single_bond": 123,
+      "double_bond": 112,
+      "triple_bond": 110
+    }
+  },
+  "Au": {
+    "color": [
+      255,
+      209,
+      35
+    ],
+    "van_der_waal": 166,
+    "covalent": {
+      "single_bond": 124,
+      "double_bond": 121,
+      "triple_bond": 123
+    }
+  },
+  "Hg": {
+    "color": [
+      184,
+      184,
+      208
+    ],
+    "van_der_waal": 209,
+    "covalent": {
+      "single_bond": 133,
+      "double_bond": 142,
+      "triple_bond": -1
+    }
+  },
+  "Tl": {
+    "color": [
+      166,
+      84,
+      77
+    ],
+    "van_der_waal": 196,
+    "covalent": {
+      "single_bond": 144,
+      "double_bond": 142,
+      "triple_bond": 150
+    }
+  },
+  "Pb": {
+    "color": [
+      87,
+      89,
+      97
+    ],
+    "van_der_waal": 202,
+    "covalent": {
+      "single_bond": 144,
+      "double_bond": 135,
+      "triple_bond": 137
+    }
+  },
+  "Bi": {
+    "color": [
+      158,
+      79,
+      181
+    ],
+    "van_der_waal": 207,
+    "covalent": {
+      "single_bond": 151,
+      "double_bond": 141,
+      "triple_bond": 135
+    }
+  },
+  "Po": {
+    "color": [
+      171,
+      92,
+      0
+    ],
+    "van_der_waal": 197,
+    "covalent": {
+      "single_bond": 145,
+      "double_bond": 135,
+      "triple_bond": 129
+    }
+  },
+  "At": {
+    "color": [
+      117,
+      79,
+      69
+    ],
+    "van_der_waal": 202,
+    "covalent": {
+      "single_bond": 147,
+      "double_bond": 138,
+      "triple_bond": 138
+    }
+  },
+  "Rn": {
+    "color": [
+      66,
+      130,
+      150
+    ],
+    "van_der_waal": 220,
+    "covalent": {
+      "single_bond": 142,
+      "double_bond": 145,
+      "triple_bond": 133
+    }
+  },
+  "Fr": {
+    "color": [
+      66,
+      0,
+      102
+    ],
+    "van_der_waal": 348,
+    "covalent": {
+      "single_bond": 223,
+      "double_bond": 218,
+      "triple_bond": -1
+    }
+  },
+  "Ra": {
+    "color": [
+      0,
+      125,
+      0
+    ],
+    "van_der_waal": 283,
+    "covalent": {
+      "single_bond": 201,
+      "double_bond": 173,
+      "triple_bond": 159
+    }
+  },
+  "Ac": {
+    "color": [
+      112,
+      171,
+      250
+    ],
+    "van_der_waal": 260,
+    "covalent": {
+      "single_bond": 186,
+      "double_bond": 153,
+      "triple_bond": 140
+    }
+  },
+  "Th": {
+    "color": [
+      0,
+      186,
+      255
+    ],
+    "van_der_waal": 237,
+    "covalent": {
+      "single_bond": 175,
+      "double_bond": 143,
+      "triple_bond": 136
+    }
+  },
+  "Pa": {
+    "color": [
+      0,
+      161,
+      255
+    ],
+    "van_der_waal": 243,
+    "covalent": {
+      "single_bond": 169,
+      "double_bond": 138,
+      "triple_bond": 129
+    }
+  },
+  "U": {
+    "color": [
+      0,
+      143,
+      255
+    ],
+    "van_der_waal": 240,
+    "covalent": {
+      "single_bond": 170,
+      "double_bond": 134,
+      "triple_bond": 118
+    }
+  },
+  "Np": {
+    "color": [
+      0,
+      128,
+      255
+    ],
+    "van_der_waal": 221,
+    "covalent": {
+      "single_bond": 171,
+      "double_bond": 136,
+      "triple_bond": 116
+    }
+  },
+  "Pu": {
+    "color": [
+      0,
+      107,
+      255
+    ],
+    "van_der_waal": 243,
+    "covalent": {
+      "single_bond": 172,
+      "double_bond": 135,
+      "triple_bond": -1
+    }
+  },
+  "Am": {
+    "color": [
+      84,
+      92,
+      242
+    ],
+    "van_der_waal": 244,
+    "covalent": {
+      "single_bond": 166,
+      "double_bond": 135,
+      "triple_bond": -1
+    }
+  },
+  "Cm": {
+    "color": [
+      120,
+      92,
+      227
+    ],
+    "van_der_waal": 245,
+    "covalent": {
+      "single_bond": 166,
+      "double_bond": 136,
+      "triple_bond": -1
+    }
+  },
+  "Bk": {
+    "color": [
+      138,
+      79,
+      227
+    ],
+    "van_der_waal": 244,
+    "covalent": {
+      "single_bond": 168,
+      "double_bond": 139,
+      "triple_bond": -1
+    }
+  },
+  "Cf": {
+    "color": [
+      161,
+      54,
+      212
+    ],
+    "van_der_waal": 245,
+    "covalent": {
+      "single_bond": 168,
+      "double_bond": 140,
+      "triple_bond": -1
+    }
+  },
+  "Es": {
+    "color": [
+      179,
+      31,
+      212
+    ],
+    "van_der_waal": 245,
+    "covalent": {
+      "single_bond": 165,
+      "double_bond": 140,
+      "triple_bond": -1
+    }
+  },
+  "Fm": {
+    "color": [
+      179,
+      31,
+      186
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 167,
+      "double_bond": -1,
+      "triple_bond": -1
+    }
+  },
+  "Md": {
+    "color": [
+      179,
+      13,
+      166
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 173,
+      "double_bond": 139,
+      "triple_bond": -1
+    }
+  },
+  "No": {
+    "color": [
+      189,
+      13,
+      135
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 176,
+      "double_bond": 159,
+      "triple_bond": -1
+    }
+  },
+  "Lr": {
+    "color": [
+      199,
+      0,
+      102
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 161,
+      "double_bond": 141,
+      "triple_bond": -1
+    }
+  },
+  "Rf": {
+    "color": [
+      204,
+      0,
+      89
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 157,
+      "double_bond": 140,
+      "triple_bond": 131
+    }
+  },
+  "Db": {
+    "color": [
+      209,
+      0,
+      79
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 149,
+      "double_bond": 136,
+      "triple_bond": 126
+    }
+  },
+  "Sg": {
+    "color": [
+      217,
+      0,
+      69
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 143,
+      "double_bond": 128,
+      "triple_bond": 121
+    }
+  },
+  "Bh": {
+    "color": [
+      224,
+      0,
+      56
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 141,
+      "double_bond": 128,
+      "triple_bond": 119
+    }
+  },
+  "Hs": {
+    "color": [
+      230,
+      0,
+      46
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 134,
+      "double_bond": 125,
+      "triple_bond": 118
+    }
+  },
+  "Mt": {
+    "color": [
+      235,
+      0,
+      38
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 129,
+      "double_bond": 125,
+      "triple_bond": 113
+    }
+  },
+  "Ds": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 128,
+      "double_bond": 116,
+      "triple_bond": 112
+    }
+  },
+  "Rg": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 121,
+      "double_bond": 116,
+      "triple_bond": 118
+    }
+  },
+  "Cn": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 122,
+      "double_bond": 137,
+      "triple_bond": 130
+    }
+  },
+  "Nh": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 136,
+      "double_bond": -1,
+      "triple_bond": -1
+    }
+  },
+  "Fl": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 143,
+      "double_bond": -1,
+      "triple_bond": -1
+    }
+  },
+  "Mc": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 162,
+      "double_bond": -1,
+      "triple_bond": -1
+    }
+  },
+  "Lv": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 175,
+      "double_bond": -1,
+      "triple_bond": -1
+    }
+  },
+  "Ts": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 165,
+      "double_bond": -1,
+      "triple_bond": -1
+    }
+  },
+  "Og": {
+    "color": [
+      -1,
+      -1,
+      -1
+    ],
+    "van_der_waal": -1,
+    "covalent": {
+      "single_bond": 157,
+      "double_bond": -1,
+      "triple_bond": -1
+    }
+  }
+}

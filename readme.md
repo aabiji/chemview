@@ -5,10 +5,11 @@ Ressources:
 - [SDF File format guidance](https://www.nonlinear.com/progenesis/sdf-studio/v0.9/faq/sdf-file-format-guidance.aspx)
 - [Learn WGPU](https://sotrh.github.io/learn-wgpu/beginner/tutorial1-window/#boring-i-know)
 - [Distance functions](https://iquilezles.org/articles/distfunctions/)
+- [Awesome Chemistry Datasets](https://github.com/kjappelbaum/awesome-chemistry-datasets)
+- [Covalent radii revisited](https://www.researchgate.net/publication/5373706_Covalent_radii_revisited)
 
 Interesting tangents:
 - [Contribute to glam?](https://github.com/bitshifter/glam-rs)
-- Write a blog article on utilizing signed distance fields to draw shapes
 
 Notes:
 - Port to winit 0.31.0 once it comes out of beta, although the new api is different from the stable one
@@ -21,12 +22,13 @@ Part 1:
   - [x] Render multiple items using instancing
   - [x] Setup basic camera movement
   - [x] MSAA antialiasing
-  - [ ] Use signed distance fields to render a sphere and a cylinder
-  - [ ] Phong lighting
-  - [ ] Refactor the wgpu usage. Write a comment explaining the overall architecture (how we are drawing objects)
-  - [ ] Think about how compounds will be drawn, investigate what PubChem does
+  - [x] Use signed distance fields to render a sphere and a cylinder
+  - [x] Phong lighting
+  - [x] Refactor the wgpu usage. Write a comment explaining the overall architecture (how we are drawing objects)
+  - [x] Think about how compounds will be drawn, investigate what PubChem does
 
 - [ ] Render the atoms and bonds in a molecule
+  - [ ] Map the parsed `Compound` into `Vec<Shape>`
   - [ ] Ball and stick model
   - [ ] Space filling model
     - [ ] Using van der Waal radii
@@ -48,4 +50,6 @@ Part 2:
 - Performance engineering to render thousands of atoms while maintaining 60 fps without a beefy gpu
 
 Part 3:
+- You know what would be really cool? Being able to step through and simulate chemical reactions.
+  In other words, visualize a chemical equation.
 - Port to WASM, add a basic UI to select/search for files, ask for feedback from actual scientists

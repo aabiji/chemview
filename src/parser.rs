@@ -1,5 +1,15 @@
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+#[derive(Deserialize)]
+pub struct ElementInfo {
+    wwal_radius: i32,
+    covalent_radius: [i32; 3],
+    color: [f32; 3],
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Compound {
@@ -177,6 +187,13 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
     }
 
     Ok(compound)
+}
+
+pub fn parse_element_info(path: &PathBuf) -> Result<HashMap<String, ElementInfo>, String> {
+    let contents = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
+    let data: HashMap<String, ElementInfo> =
+        serde_json::from_str(&contents).map_err(|err| err.to_string())?;
+    Ok(data)
 }
 
 mod tests {
