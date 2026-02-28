@@ -32,7 +32,7 @@ Part 1:
   - [x] 3D camera panning and zooming in/out
 
 - [ ] Improve the visualization
-  - [ ] Scrap the SDF rendering, instead draw shapes by generating the meshes at startup and instancing
+  - [x] Scrap the SDF rendering, instead draw shapes by generating the meshes at startup and instancing
   - [ ] Integrate with egui to render fps
   - [ ] View a new molecule using a file dialog
   - [ ] Improve camera movement, panning and zooming

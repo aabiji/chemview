@@ -134,6 +134,7 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
 
 /*
 TODO: Overhaul this:
+- Translate the entire molecule to the origin
 - Handle double, triple and aromatic bonds
 - Scale element radii properly
     - Scale non linearly
@@ -145,7 +146,7 @@ TODO: Overhaul this:
 pub fn compound_to_shape(
     compound: &Compound,
     element_infos: &HashMap<String, ElementInfo>,
-) -> Vec<Shape> {
+) -> (Vec<Shape>, u32) {
     let max_covalent_radii = *element_infos
         .values()
         .flat_map(|e| e.covalent_radius.iter())
@@ -168,6 +169,8 @@ pub fn compound_to_shape(
             }
         })
         .collect();
+    let num_spheres = shapes.len() as u32;
+
     shapes.extend(compound.bonds.iter().map(|bond| {
         let start = compound.atoms[bond.src_index].position;
         let end = compound.atoms[bond.dst_index].position;
@@ -178,10 +181,11 @@ pub fn compound_to_shape(
             radius: 0.01,
         };
     }));
-    shapes
+
+    (shapes, num_spheres)
 }
 
-pub fn load_compound(name: &str) -> Result<Vec<Shape>, String> {
+pub fn load_compound(name: &str) -> Result<(Vec<Shape>, u32), String> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let sdf_path = base.join(format!("data/{name}.sdf").as_str());
     let info_path = base.join("data/element_data.json");

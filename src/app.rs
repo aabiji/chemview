@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::SystemTime;
 use wgpu::{
     BindGroup, Buffer, BufferAddress, BufferUsages, DepthBiasState, DepthStencilState, Device,
     DeviceDescriptor, Extent3d, FragmentState, LoadOp, MultisampleState, Operations,
@@ -41,19 +42,20 @@ struct State {
     queue: Queue,
     render_pipeline: RenderPipeline,
 
-    sphere_instance_range: Range<u32>,
-    cylinder_instance_range: Range<u32>,
-    sphere_index_range: Range<u32>,
-    cylinder_index_range: Range<u32>,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-
     bind_group: BindGroup,
     buffers: Vec<Buffer>,
     msaa_texture: TextureView,
     depth_texture: TextureView,
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
+
+    sphere_index_range: Range<u32>,
+    cylinder_index_range: Range<u32>,
+    sphere_instance_range: Range<u32>,
+    cylinder_instance_range: Range<u32>,
 
     controller: CameraController,
+    current_time: SystemTime,
 
     // `surface` should be the last to get dropped
     surface: Surface<'static>,
@@ -83,7 +85,7 @@ impl State {
         });
 
         let (vertices, indices, sphere_index_range, cylinder_index_range) =
-            shape::create_mesh_buffers(32, 32, 1.0, 2.0);
+            shape::create_mesh_buffers(32, 32, 1.0, 1.0);
 
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex buffer"),
@@ -199,19 +201,20 @@ impl State {
             queue,
             render_pipeline,
 
-            sphere_index_range,
-            cylinder_index_range,
-            sphere_instance_range: 0..0,
-            cylinder_instance_range: 0..0,
-            vertex_buffer,
-            index_buffer,
-
             bind_group,
             buffers,
             msaa_texture,
             depth_texture,
+            vertex_buffer,
+            index_buffer,
+
+            sphere_index_range,
+            cylinder_index_range,
+            sphere_instance_range: 0..0,
+            cylinder_instance_range: 0..0,
 
             controller: CameraController::new(),
+            current_time: SystemTime::now(),
 
             surface,
             surface_format,
@@ -308,18 +311,13 @@ impl State {
             .write_buffer(&self.buffers[2], 0, bytemuck::cast_slice(&position));
     }
 
-    pub fn set_shapes_data(&mut self, shapes: Vec<Shape>) {
-        let sphere_count = shapes
-            .iter()
-            .filter(|&s| matches!(s, Shape::Sphere { .. }))
-            .count() as u32;
-        self.sphere_instance_range = 0..sphere_count;
-        self.cylinder_instance_range = sphere_count..shapes.len() as u32;
+    pub fn set_shapes_data(&mut self, shapes: Vec<Shape>, num_spheres: u32) {
+        self.sphere_instance_range = 0..num_spheres;
+        self.cylinder_instance_range = num_spheres..shapes.len() as u32;
 
         // NOTE: the indexes into self.buffer are taken from the order in which the shader
         // vars are defined in the `new` functio. Make sure they match!
         let data: Vec<InstanceData> = shapes.iter().map(|s| shape::to_raw(s)).collect();
-        let count = vec![shapes.len() as u32, 0u32, 0u32, 0u32];
         let shapes_raw = bytemuck::cast_slice(&data);
 
         assert!(shapes_raw.len() < STORAGE_BUFFE_SIZE); // TODO: handle error
@@ -327,7 +325,11 @@ impl State {
     }
 
     fn render(&mut self) {
-        self.controller.update_camera();
+        let now = SystemTime::now();
+        let delta_time = now.duration_since(self.current_time).unwrap().as_millis();
+        self.current_time = now;
+
+        self.controller.update_camera(1.0 / delta_time as f32);
         self.update_shader_vars();
 
         let surface_texture = self.surface.get_current_texture().unwrap();
@@ -405,7 +407,9 @@ impl ApplicationHandler for App {
         );
 
         let mut state = pollster::block_on(State::new(window.clone()));
-        state.set_shapes_data(compound::load_compound("methane").unwrap());
+        let (shapes, num_spheres) = compound::load_compound("caffeine").unwrap();
+        state.set_shapes_data(shapes, num_spheres);
+
         self.state = Some(state);
         window.request_redraw();
     }

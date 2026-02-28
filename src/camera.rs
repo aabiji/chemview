@@ -54,13 +54,14 @@ impl Camera {
     fn translate(&mut self, m: Action, speed: f32) {
         let up = Vec3::Y;
         let right = self.front.cross(up).normalize();
+        let front = self.front.normalize();
         match m {
-            Action::Up => self.position -= up * speed,
-            Action::Down => self.position += up * speed,
+            Action::Up => self.position += up * speed,
+            Action::Down => self.position -= up * speed,
             Action::Left => self.position -= right * speed,
             Action::Right => self.position += right * speed,
-            Action::Forward => self.position -= self.front * speed,
-            Action::Backward => self.position += self.front * speed,
+            Action::Forward => self.position += front * speed,
+            Action::Backward => self.position -= front * speed,
         }
     }
 
@@ -100,8 +101,8 @@ impl CameraController {
             mouse_down: false,
             prev_mouse: Vec2::new(0.0, 0.0),
             mouse_delta: Vec2::new(0.0, 0.0),
-            sensitivity: 0.5,
-            speed: 0.6,
+            sensitivity: 2.5,
+            speed: 2.5,
         }
     }
 
@@ -122,7 +123,7 @@ impl CameraController {
     }
 
     pub fn update_mouse_delta(&mut self, x: f32, y: f32) {
-        self.mouse_delta = Vec2::new(self.prev_mouse.x - x, self.prev_mouse.y - y);
+        self.mouse_delta = Vec2::new(x - self.prev_mouse.x, self.prev_mouse.y - y);
         self.mouse_delta *= self.sensitivity;
         self.prev_mouse = Vec2::new(x, y);
     }
@@ -135,12 +136,15 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&mut self) {
+    pub fn update_camera(&mut self, delta_time: f32) {
         for action in &self.actions {
-            self.camera.translate(*action, self.speed);
+            self.camera.translate(*action, self.speed * delta_time);
         }
         if self.mouse_down {
-            self.camera.rotate(self.mouse_delta.x, self.mouse_delta.y);
+            self.camera.rotate(
+                self.mouse_delta.x * delta_time,
+                self.mouse_delta.y * delta_time,
+            );
         }
         self.mouse_delta = Vec2::new(0.0, 0.0);
     }

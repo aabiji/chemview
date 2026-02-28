@@ -33,9 +33,8 @@ fn vertex_shader(
 
 @fragment
 fn fragment_shader(v: VertexOutput) -> @location(0) vec4<f32> {
-    /*
     // Basic phong lighting
-    let light_pos = vec3<f32>(5.0, 0.0, -5.0);
+    let light_pos = vec3<f32>(5.0, 1.0, 5.0);
     let light_color = vec3<f32>(1.0, 1.0, 1.0);
     let shininess = 64.0;
 
@@ -50,6 +49,4 @@ fn fragment_shader(v: VertexOutput) -> @location(0) vec4<f32> {
     let specular = 0.15 * spec * light_color;
 
     return vec4<f32>(ambient + diffuse + specular, 1.0);
-    */
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
 }

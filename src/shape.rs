@@ -68,8 +68,8 @@ pub struct Vertex {
 impl Vertex {
     fn from(pos: Vec3, normal: Vec3) -> Vertex {
         Vertex {
-            position: [pos[0], pos[1], pos[2], 0.0],
-            normal: [normal[0], normal[1], normal[2], 0.0],
+            position: [pos[0], pos[1], pos[2], 1.0],
+            normal: [normal[0], normal[1], normal[2], 1.0],
         }
     }
 }
@@ -145,7 +145,7 @@ fn generate_cylinder_mesh(
 
     // Generate the cylinder vertices
     for i in 0..2 {
-        let h = -height / 2.0 + (i as f32) * height; // -h/2 to h/2
+        let h = (i as f32) * height; // 0 to h
 
         for j in 0..=sector_count {
             let sector_angle = (j as f32) * sector_step;
@@ -180,7 +180,7 @@ fn generate_cylinder_mesh(
 }
 
 // Create a vertex buffer and an index buffer that combines the vertices and
-// indices for the sphere and cylinders. Seperate them by index ranegs
+// indices for sphere and cylinders, demarkated by index ranges
 pub fn create_mesh_buffers(
     stack_count: usize,
     sector_count: usize,
