@@ -17,12 +17,12 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
-use crate::parser::{RawShape, Shape};
 use crate::shader;
 use crate::shader::ShaderVar;
+use crate::shape::{RawShape, Shape};
 use crate::{
     camera::{Action, CameraController},
-    parser,
+    compound,
 };
 
 // The maximum size in bytes of a storage buffer will be 10 mb.
@@ -316,10 +316,10 @@ impl ApplicationHandler for App {
         // Initialize compound rendering
         let sdf_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/methane.sdf");
         let info_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/element_data.json");
-        let info = parser::parse_element_info(&info_path).unwrap();
+        let info = compound::parse_element_info(&info_path).unwrap();
         let contents = std::fs::read_to_string(&sdf_path).unwrap();
-        let compound = parser::parse_compound(&contents).unwrap();
-        let shapes = parser::compound_to_shape(&compound, &info);
+        let compound = compound::parse_compound(&contents).unwrap();
+        let shapes = compound::compound_to_shape(&compound, &info);
         state.set_shapes_data(shapes);
 
         self.state = Some(state);

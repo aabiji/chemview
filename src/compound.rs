@@ -1,4 +1,4 @@
-use bytemuck::{Pod, Zeroable};
+use crate::shape::Shape;
 use glam::Vec3;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -51,63 +51,6 @@ enum BondTopology {
     RingOrChain,
     Ring,
     Chain,
-}
-
-pub enum Shape {
-    Sphere {
-        origin: Vec3,
-        color: Vec3,
-        radius: f32,
-    },
-    Cylinder {
-        start: Vec3,
-        end: Vec3,
-        color: Vec3,
-        radius: f32,
-    },
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct RawShape {
-    start_pos: [f32; 4],
-    end_pos: [f32; 4],
-    color: [f32; 4],
-    shape_type: u32,
-    radius: f32,
-    _padding: [f32; 2],
-}
-
-impl Shape {
-    pub fn to_raw(&self) -> RawShape {
-        match self {
-            Shape::Sphere {
-                origin,
-                color,
-                radius,
-            } => RawShape {
-                start_pos: [origin.x, origin.y, origin.z, 0.0],
-                end_pos: [0.0, 0.0, 0.0, 0.0],
-                color: [color.x, color.y, color.z, 0.0],
-                shape_type: 0,
-                radius: *radius,
-                _padding: [0.0, 0.0],
-            },
-            Shape::Cylinder {
-                start,
-                end,
-                color,
-                radius,
-            } => RawShape {
-                start_pos: [start.x, start.y, start.z, 0.0],
-                end_pos: [end.x, end.y, end.z, 0.0],
-                color: [color.x, color.y, color.z, 0.0],
-                shape_type: 1,
-                radius: *radius,
-                _padding: [0.0, 0.0],
-            },
-        }
-    }
 }
 
 fn split(lines: &str, sep: char, strip: bool) -> Vec<&str> {
@@ -247,7 +190,7 @@ pub fn compound_to_shape(
 mod tests {
     #[test]
     fn test_parser() {
-        use crate::parser::{Atom, Bond, BondTopology, BondType, Compound, parse_compound};
+        use crate::compound::{Atom, Bond, BondTopology, BondType, Compound, parse_compound};
         use glam::Vec3;
         let content = "783
                 -OEChem-02172615072D

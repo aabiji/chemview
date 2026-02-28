@@ -4,12 +4,12 @@ Ressources:
 - [Chemical table file](https://en.wikipedia.org/wiki/Chemical_table_file)
 - [SDF File format guidance](https://www.nonlinear.com/progenesis/sdf-studio/v0.9/faq/sdf-file-format-guidance.aspx)
 - [Learn WGPU](https://sotrh.github.io/learn-wgpu/beginner/tutorial1-window/#boring-i-know)
-- [Distance functions](https://iquilezles.org/articles/distfunctions/)
-- [Awesome Chemistry Datasets](https://github.com/kjappelbaum/awesome-chemistry-datasets)
 - [Covalent radii revisited](https://www.researchgate.net/publication/5373706_Covalent_radii_revisited)
+- [Atomic Radius in the Periodic Table of Elements](https://pubchem.ncbi.nlm.nih.gov/ptable/atomic-radius/)
+- [OpenGL Cylinder, Prism & Pipe](https://www.songho.ca/opengl/gl_cylinder.html)
+- [OpenGL Sphere](https://www.songho.ca/opengl/gl_sphere.html)
 
-Interesting tangents:
-- [Contribute to glam?](https://github.com/bitshifter/glam-rs)
+- [egui_wgpu](https://docs.rs/egui-wgpu/latest/egui_wgpu/)
 
 Notes:
 - Port to winit 0.31.0 once it comes out of beta, although the new api is different from the stable one
@@ -32,9 +32,9 @@ Part 1:
   - [x] 3D camera panning and zooming in/out
 
 - [ ] Improve the visualization
+  - [ ] Scrap the SDF rendering, instead draw shapes by generating the meshes at startup and instancing
   - [ ] Integrate with egui to render fps
   - [ ] View a new molecule using a file dialog
-  - [ ] Optimize the SDF rendering (what we have is way too slow)
   - [ ] Improve camera movement, panning and zooming
 
 

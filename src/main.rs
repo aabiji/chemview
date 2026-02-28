@@ -1,7 +1,8 @@
 mod app;
 mod camera;
-mod parser;
+mod compound;
 mod shader;
+mod shape;
 
 fn main() {
     app::launch();
