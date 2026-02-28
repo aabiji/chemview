@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec3};
+use glam::{Mat4, Vec2, Vec3};
 use std::collections::HashSet;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -21,13 +21,20 @@ struct Camera {
 
 impl Camera {
     pub fn new() -> Self {
-        // -z will be made to go into the screen
+        let pitch = 0.0f32;
+        let yaw = -90.0f32;
+        let front = Vec3::new(
+            yaw.to_radians().cos() * pitch.to_radians().cos(),
+            pitch.to_radians().sin(),
+            yaw.to_radians().sin() * pitch.to_radians().cos(),
+        )
+        .normalize();
         Self {
-            pitch: 0.0,
-            yaw: -90.0,
+            pitch,
+            yaw,
             field_of_view: 45.0,
-            front: Vec3::new(0.0, 0.0, -1.0),
-            position: Vec3::new(0.0, 0.0, -3.0),
+            front,
+            position: Vec3::new(0.0, 0.0, 3.0),
         }
     }
 
@@ -35,23 +42,13 @@ impl Camera {
         [self.position.x, self.position.y, self.position.z, 0.0]
     }
 
-    pub fn padded_basis(&self) -> [f32; 12] {
-        let right = self.front.cross(Vec3::Y).normalize();
-        let up = right.cross(self.front).normalize();
-        [
-            right.x,
-            right.y,
-            right.z,
-            0.0,
-            up.x,
-            up.y,
-            up.z,
-            0.0,
-            self.front.x,
-            self.front.y,
-            self.front.z,
-            0.0, // right
-        ]
+    pub fn projection(&self, aspect_ratio: f32) -> [[f32; 4]; 4] {
+        let fov = self.field_of_view.to_radians();
+        Mat4::perspective_rh(fov, aspect_ratio, 0.1, 100.0).to_cols_array_2d()
+    }
+
+    pub fn view(&self) -> [[f32; 4]; 4] {
+        Mat4::look_at_rh(self.position, self.position + self.front, Vec3::Y).to_cols_array_2d()
     }
 
     fn translate(&mut self, m: Action, speed: f32) {
@@ -108,8 +105,12 @@ impl CameraController {
         }
     }
 
-    pub fn camera_state(&self) -> ([f32; 4], [f32; 12]) {
-        (self.camera.position(), self.camera.padded_basis())
+    pub fn camera_state(&self, aspect_ratio: f32) -> ([f32; 4], [[f32; 4]; 4], [[f32; 4]; 4]) {
+        (
+            self.camera.position(),
+            self.camera.projection(aspect_ratio),
+            self.camera.view(),
+        )
     }
 
     pub fn zoom(&mut self, inwards: bool) {

@@ -1,12 +1,17 @@
+use bytemuck::offset_of;
 use std::borrow::Cow;
+use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 use wgpu::{
-    BindGroup, Buffer, Device, DeviceDescriptor, Extent3d, FragmentState, MultisampleState,
+    BindGroup, Buffer, BufferAddress, BufferUsages, DepthBiasState, DepthStencilState, Device,
+    DeviceDescriptor, Extent3d, FragmentState, LoadOp, MultisampleState, Operations,
     PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderModuleDescriptor, Surface, TextureDescriptor, TextureFormat, TextureUsages, TextureView,
-    TextureViewDescriptor, VertexState,
+    RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, StencilState, Surface,
+    TextureDescriptor, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
+    util::BufferInitDescriptor, util::DeviceExt,
 };
 use winit::{
     application::ApplicationHandler,
@@ -17,15 +22,15 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
-use crate::shader;
 use crate::shader::ShaderVar;
-use crate::shape::{RawShape, Shape};
+use crate::shape::{InstanceData, Shape, Vertex};
 use crate::{
     camera::{Action, CameraController},
     compound,
 };
+use crate::{shader, shape};
 
-// The maximum size in bytes of a storage buffer will be 10 mb.
+// The maximum size in bytes of a storage buffer will be 10 MB
 const STORAGE_BUFFE_SIZE: usize = 10 * 1024 * 1024;
 
 struct State {
@@ -36,9 +41,17 @@ struct State {
     queue: Queue,
     render_pipeline: RenderPipeline,
 
+    sphere_instance_range: Range<u32>,
+    cylinder_instance_range: Range<u32>,
+    sphere_index_range: Range<u32>,
+    cylinder_index_range: Range<u32>,
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
+
     bind_group: BindGroup,
     buffers: Vec<Buffer>,
     msaa_texture: TextureView,
+    depth_texture: TextureView,
 
     controller: CameraController,
 
@@ -69,6 +82,21 @@ impl State {
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&shader_source)),
         });
 
+        let (vertices, indices, sphere_index_range, cylinder_index_range) =
+            shape::create_mesh_buffers(32, 32, 1.0, 2.0);
+
+        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Vertex buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Index buffer"),
+            contents: bytemuck::cast_slice(&indices),
+            usage: BufferUsages::INDEX,
+        });
+
         let msaa_texture = State::create_msaa_texture(
             &device,
             surface_format.add_srgb_suffix(),
@@ -76,7 +104,16 @@ impl State {
             window_size.height,
         );
 
+        let depth_texture =
+            State::create_depth_texture(&device, window_size.width, window_size.height);
+
         let shader_vars = vec![
+            ShaderVar {
+                is_f32: true,
+                is_storage: false,
+                num_bytes: 16,
+                label: String::from("Projection matrix"),
+            },
             ShaderVar {
                 is_f32: true,
                 is_storage: false,
@@ -85,31 +122,36 @@ impl State {
             },
             ShaderVar {
                 is_f32: true,
-                is_storage: true,
-                num_bytes: STORAGE_BUFFE_SIZE,
-                label: String::from("Shapes data"),
-            },
-            ShaderVar {
-                is_f32: false,
-                is_storage: false,
-                num_bytes: 4,
-                label: String::from("Shape count"),
-            },
-            ShaderVar {
-                is_f32: true,
-                is_storage: false,
-                num_bytes: 4,
-                label: String::from("Resolution"),
-            },
-            ShaderVar {
-                is_f32: true,
                 is_storage: false,
                 num_bytes: 4,
                 label: String::from("Camera position"),
             },
+            ShaderVar {
+                is_f32: true,
+                is_storage: true,
+                num_bytes: STORAGE_BUFFE_SIZE,
+                label: String::from("Instance data"),
+            },
         ];
         let (buffers, bind_group_layout, bind_group) =
             shader::setup_shader_vars(&device, &shader_vars);
+
+        let vertex_buffers = [VertexBufferLayout {
+            array_stride: size_of::<Vertex>() as BufferAddress,
+            step_mode: VertexStepMode::Vertex,
+            attributes: &[
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: offset_of!(Vertex, position) as u64,
+                    shader_location: 0,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: offset_of!(Vertex, normal) as u64,
+                    shader_location: 1,
+                },
+            ],
+        }];
 
         let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("Render pipeline"),
@@ -121,20 +163,26 @@ impl State {
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vertex_shader"),
-                buffers: &[], // No vertex buffer, since a fullscreen quad is drawn in the vertex shader
+                buffers: &vertex_buffers,
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: &shader,
                 entry_point: Some("fragment_shader"),
-                targets: &[Some(surface_format.into())],
+                targets: &[Some(surface_format.add_srgb_suffix().into())],
                 compilation_options: Default::default(),
             }),
             primitive: PrimitiveState {
                 cull_mode: None,
                 ..Default::default()
             },
-            depth_stencil: None,
+            depth_stencil: Some(DepthStencilState {
+                format: TextureFormat::Depth24Plus,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: StencilState::default(),
+                bias: DepthBiasState::default(),
+            }),
             multisample: MultisampleState {
                 count: 4,
                 ..MultisampleState::default()
@@ -146,13 +194,25 @@ impl State {
         let state = State {
             window,
             window_size,
+
             device,
             queue,
             render_pipeline,
+
+            sphere_index_range,
+            cylinder_index_range,
+            sphere_instance_range: 0..0,
+            cylinder_instance_range: 0..0,
+            vertex_buffer,
+            index_buffer,
+
             bind_group,
             buffers,
             msaa_texture,
+            depth_texture,
+
             controller: CameraController::new(),
+
             surface,
             surface_format,
         };
@@ -184,6 +244,24 @@ impl State {
         texture.create_view(&TextureViewDescriptor::default())
     }
 
+    fn create_depth_texture(device: &Device, width: u32, height: u32) -> TextureView {
+        let depth_texture = device.create_texture(&TextureDescriptor {
+            size: Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 4,
+            dimension: wgpu::TextureDimension::D2,
+            format: TextureFormat::Depth24Plus,
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            label: Some("Depth buffer"),
+            view_formats: &[],
+        });
+        depth_texture.create_view(&TextureViewDescriptor::default())
+    }
+
     fn configure_surface(&self) {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -207,50 +285,45 @@ impl State {
         self.msaa_texture = State::create_msaa_texture(
             &self.device,
             self.surface_format.add_srgb_suffix(),
-            self.window_size.width,
-            self.window_size.height,
+            size.width,
+            size.height,
         );
+        self.depth_texture = State::create_depth_texture(&self.device, size.width, size.height);
         self.configure_surface();
-    }
-
-    pub fn set_shapes_data(&mut self, shapes: Vec<Shape>) {
-        // NOTE: the indexes into self.buffer are taken from the order in which the shader
-        // vars are defined in the `new` functio. Make sure they match!
-        let data: Vec<RawShape> = shapes.iter().map(|s| s.to_raw()).collect();
-        let count = vec![shapes.len() as u32, 0u32, 0u32, 0u32];
-
-        let shapes_raw = bytemuck::cast_slice(&data);
-        let count_raw = bytemuck::cast_slice(&count);
-
-        assert!(shapes_raw.len() < STORAGE_BUFFE_SIZE); // TODO: handle error
-        self.queue.write_buffer(&self.buffers[1], 0, shapes_raw); // Shapes data
-        self.queue.write_buffer(&self.buffers[2], 0, count_raw); // Shape count
     }
 
     fn update_shader_vars(&mut self) {
         // NOTE: the indexes into self.buffer are taken from the order in which the shader
         // vars are defined in the `new` functio. Make sure they match!
-        let (position, matrix) = self.controller.camera_state();
+        let ratio = (self.window_size.width as f32) / (self.window_size.height as f32);
+        let (position, projection, view) = self.controller.camera_state(ratio);
 
-        // View matrix
         self.queue
-            .write_buffer(&self.buffers[0], 0, bytemuck::cast_slice(&matrix));
+            .write_buffer(&self.buffers[0], 0, bytemuck::cast_slice(&projection));
 
-        // Camera position
         self.queue
-            .write_buffer(&self.buffers[4], 0, bytemuck::cast_slice(&position));
+            .write_buffer(&self.buffers[1], 0, bytemuck::cast_slice(&view));
 
-        // Window resolution
-        self.queue.write_buffer(
-            &self.buffers[3],
-            0,
-            bytemuck::cast_slice(&[
-                self.window_size.width as f32,
-                self.window_size.height as f32,
-                0.0,
-                0.0,
-            ]),
-        );
+        self.queue
+            .write_buffer(&self.buffers[2], 0, bytemuck::cast_slice(&position));
+    }
+
+    pub fn set_shapes_data(&mut self, shapes: Vec<Shape>) {
+        let sphere_count = shapes
+            .iter()
+            .filter(|&s| matches!(s, Shape::Sphere { .. }))
+            .count() as u32;
+        self.sphere_instance_range = 0..sphere_count;
+        self.cylinder_instance_range = sphere_count..shapes.len() as u32;
+
+        // NOTE: the indexes into self.buffer are taken from the order in which the shader
+        // vars are defined in the `new` functio. Make sure they match!
+        let data: Vec<InstanceData> = shapes.iter().map(|s| shape::to_raw(s)).collect();
+        let count = vec![shapes.len() as u32, 0u32, 0u32, 0u32];
+        let shapes_raw = bytemuck::cast_slice(&data);
+
+        assert!(shapes_raw.len() < STORAGE_BUFFE_SIZE); // TODO: handle error
+        self.queue.write_buffer(&self.buffers[3], 0, shapes_raw); // Shapes data
     }
 
     fn render(&mut self) {
@@ -277,7 +350,14 @@ impl State {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture,
+                    depth_ops: Some(Operations {
+                        load: LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
                 multiview_mask: None,
@@ -285,7 +365,20 @@ impl State {
 
             pass.set_pipeline(&self.render_pipeline);
             pass.set_bind_group(0, &self.bind_group, &[]);
-            pass.draw(0..6, 0..1); // A ullscreen quad is being drawn in the vertex shader
+
+            pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+
+            pass.draw_indexed(
+                self.sphere_index_range.clone(),
+                0,
+                self.sphere_instance_range.clone(),
+            );
+            pass.draw_indexed(
+                self.cylinder_index_range.clone(),
+                0,
+                self.cylinder_instance_range.clone(),
+            );
         }
 
         self.queue.submit([encoder.finish()]);
@@ -312,16 +405,7 @@ impl ApplicationHandler for App {
         );
 
         let mut state = pollster::block_on(State::new(window.clone()));
-
-        // Initialize compound rendering
-        let sdf_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/methane.sdf");
-        let info_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/element_data.json");
-        let info = compound::parse_element_info(&info_path).unwrap();
-        let contents = std::fs::read_to_string(&sdf_path).unwrap();
-        let compound = compound::parse_compound(&contents).unwrap();
-        let shapes = compound::compound_to_shape(&compound, &info);
-        state.set_shapes_data(shapes);
-
+        state.set_shapes_data(compound::load_compound("methane").unwrap());
         self.state = Some(state);
         window.request_redraw();
     }

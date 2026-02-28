@@ -132,13 +132,6 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
     Ok(compound)
 }
 
-pub fn parse_element_info(path: &PathBuf) -> Result<HashMap<String, ElementInfo>, String> {
-    let contents = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
-    let data: HashMap<String, ElementInfo> =
-        serde_json::from_str(&contents).map_err(|err| err.to_string())?;
-    Ok(data)
-}
-
 /*
 TODO: Overhaul this:
 - Handle double, triple and aromatic bonds
@@ -160,6 +153,7 @@ pub fn compound_to_shape(
         .max()
         .unwrap_or(&0);
 
+    // NOTE: To render the shapes using instancing, the spheres should come before the cylinders
     let mut shapes: Vec<Shape> = compound
         .atoms
         .iter()
@@ -185,6 +179,21 @@ pub fn compound_to_shape(
         };
     }));
     shapes
+}
+
+pub fn load_compound(name: &str) -> Result<Vec<Shape>, String> {
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let sdf_path = base.join(format!("data/{name}.sdf").as_str());
+    let info_path = base.join("data/element_data.json");
+
+    let contents = std::fs::read_to_string(info_path).map_err(|err| err.to_string())?;
+    let info: HashMap<String, ElementInfo> =
+        serde_json::from_str(&contents).map_err(|err| err.to_string())?;
+
+    let contents = std::fs::read_to_string(&sdf_path).map_err(|err| err.to_string())?;
+    let compound = parse_compound(&contents)?;
+
+    Ok(compound_to_shape(&compound, &info))
 }
 
 mod tests {
