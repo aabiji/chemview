@@ -5,14 +5,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::SystemTime;
 use wgpu::{
-    BindGroup, Buffer, BufferAddress, BufferUsages, DepthBiasState, DepthStencilState, Device,
-    DeviceDescriptor, Extent3d, FragmentState, LoadOp, MultisampleState, Operations,
-    PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPassColorAttachment,
+    BindGroup, Buffer, BufferAddress, BufferUsages, CommandEncoder, DepthBiasState,
+    DepthStencilState, Device, DeviceDescriptor, Extent3d, FragmentState, LoadOp, MultisampleState,
+    Operations, PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPassColorAttachment,
     RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline,
     RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, StencilState, Surface,
     TextureDescriptor, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
     VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
-    util::BufferInitDescriptor, util::DeviceExt,
+    util::{BufferInitDescriptor, DeviceExt},
 };
 use winit::{
     application::ApplicationHandler,
@@ -25,6 +25,7 @@ use winit::{
 
 use crate::shader::ShaderVar;
 use crate::shape::{InstanceData, Shape, Vertex};
+use crate::ui::DebugUI;
 use crate::{
     camera::{Action, CameraController},
     compound,
@@ -33,6 +34,8 @@ use crate::{shader, shape};
 
 // The maximum size in bytes of a storage buffer will be 10 MB
 const STORAGE_BUFFE_SIZE: usize = 10 * 1024 * 1024;
+
+const MSAA_SAMPLE_COUNT: u32 = 4;
 
 struct State {
     window: Arc<Window>,
@@ -54,6 +57,7 @@ struct State {
     sphere_instance_range: Range<u32>,
     cylinder_instance_range: Range<u32>,
 
+    ui: DebugUI,
     controller: CameraController,
     current_time: SystemTime,
 
@@ -160,7 +164,7 @@ impl State {
             layout: Some(&device.create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: Some("Render pipeline layout"),
                 bind_group_layouts: &[&bind_group_layout],
-                immediate_size: 0,
+                push_constant_ranges: &[],
             })),
             vertex: VertexState {
                 module: &shader,
@@ -186,12 +190,14 @@ impl State {
                 bias: DepthBiasState::default(),
             }),
             multisample: MultisampleState {
-                count: 4,
+                count: MSAA_SAMPLE_COUNT,
                 ..MultisampleState::default()
             },
-            multiview_mask: None,
             cache: None,
+            multiview: None,
         });
+
+        let ui = DebugUI::new(&device, &window, surface_format);
 
         let state = State {
             window,
@@ -213,6 +219,7 @@ impl State {
             sphere_instance_range: 0..0,
             cylinder_instance_range: 0..0,
 
+            ui,
             controller: CameraController::new(),
             current_time: SystemTime::now(),
 
@@ -237,7 +244,7 @@ impl State {
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
-            sample_count: 4,
+            sample_count: MSAA_SAMPLE_COUNT,
             dimension: wgpu::TextureDimension::D2,
             format,
             usage: TextureUsages::RENDER_ATTACHMENT,
@@ -255,7 +262,7 @@ impl State {
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
-            sample_count: 4,
+            sample_count: MSAA_SAMPLE_COUNT,
             dimension: wgpu::TextureDimension::D2,
             format: TextureFormat::Depth24Plus,
             usage: TextureUsages::RENDER_ATTACHMENT,
@@ -324,7 +331,7 @@ impl State {
         self.queue.write_buffer(&self.buffers[3], 0, shapes_raw); // Shapes data
     }
 
-    fn render(&mut self) {
+    fn render_shapes(&mut self, encoder: &mut CommandEncoder, surface_texture_view: &TextureView) {
         let now = SystemTime::now();
         let delta_time = now.duration_since(self.current_time).unwrap().as_millis();
         self.current_time = now;
@@ -332,20 +339,12 @@ impl State {
         self.controller.update_camera(1.0 / delta_time as f32);
         self.update_shader_vars();
 
-        let surface_texture = self.surface.get_current_texture().unwrap();
-        let surface_texture_view = surface_texture.texture.create_view(&TextureViewDescriptor {
-            format: Some(self.surface_format.add_srgb_suffix()),
-            ..Default::default()
-        });
-
-        let mut encoder = self.device.create_command_encoder(&Default::default());
-
         {
             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("Main render pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &self.msaa_texture,
-                    resolve_target: Some(&surface_texture_view),
+                    resolve_target: Some(surface_texture_view),
                     depth_slice: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
@@ -362,7 +361,6 @@ impl State {
                 }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
-                multiview_mask: None,
             });
 
             pass.set_pipeline(&self.render_pipeline);
@@ -382,6 +380,25 @@ impl State {
                 self.cylinder_instance_range.clone(),
             );
         }
+    }
+
+    fn render(&mut self) {
+        let surface_texture = self.surface.get_current_texture().unwrap();
+        let surface_texture_view = surface_texture.texture.create_view(&TextureViewDescriptor {
+            format: Some(self.surface_format.add_srgb_suffix()),
+            ..Default::default()
+        });
+
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+
+        self.render_shapes(&mut encoder, &surface_texture_view);
+        self.ui.render(
+            &self.device,
+            &self.window,
+            &self.queue,
+            &mut encoder,
+            &surface_texture_view,
+        );
 
         self.queue.submit([encoder.finish()]);
         self.window.pre_present_notify();
@@ -416,6 +433,11 @@ impl ApplicationHandler for App {
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         let state = self.state.as_mut().unwrap();
+
+        let egui_consummed = state.ui.on_window_event(&state.window, &event);
+        if egui_consummed {
+            return;
+        }
 
         match event {
             WindowEvent::RedrawRequested => {
