@@ -108,7 +108,9 @@ impl DebugUI {
         egui::SidePanel::left("Debug")
             .exact_width(200.0)
             .show(ctx, |ui| {
-                ui.label("Hello :)");
+                ui.label("Moniker");
+                ui.label("IUPAC: ");
+                ui.label("Formula: ");
             });
     }
 }

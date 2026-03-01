@@ -17,7 +17,7 @@ Notes:
 Part 1:
 - [x] Basic SDF parser with tests
 
-- [ ] WGPU usage:
+- [x] WGPU usage:
   - [x] Add a depth buffer
   - [x] Render multiple items using instancing
   - [x] Setup basic camera movement
@@ -31,12 +31,10 @@ Part 1:
   - [x] Shader which highlights edges and provides nice phong lighting in the scene
   - [x] 3D camera panning and zooming in/out
 
-- [ ] Improve the visualization
+- [x] Improve the visualization
   - [x] Scrap the SDF rendering, instead draw shapes by generating the meshes at startup and instancing
-  - [ ] Integrate with egui to render fps
-  - [ ] View a new molecule using a file dialog
-  - [ ] Improve camera movement, panning and zooming
-
+  - [x] Integrate with egui to render fps
+  - [x] Improve camera movement, panning and zooming
 
 - [ ] Render the atoms and bonds in a molecule
   - [x] Map the parsed `Compound` into `Vec<Shape>`

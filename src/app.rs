@@ -424,7 +424,8 @@ impl ApplicationHandler for App {
         );
 
         let mut state = pollster::block_on(State::new(window.clone()));
-        let (shapes, num_spheres) = compound::load_compound("caffeine").unwrap();
+        let (shapes, num_spheres) =
+            compound::load_compound("caffeine", state.controller.front()).unwrap();
         state.set_shapes_data(shapes, num_spheres);
 
         self.state = Some(state);

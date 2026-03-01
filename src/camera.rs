@@ -51,6 +51,10 @@ impl Camera {
         Mat4::look_at_rh(self.position, self.position + self.front, Vec3::Y).to_cols_array_2d()
     }
 
+    pub fn front(&self) -> Vec3 {
+        self.front
+    }
+
     fn translate(&mut self, m: Action, speed: f32) {
         let up = Vec3::Y;
         let right = self.front.cross(up).normalize();
@@ -112,6 +116,10 @@ impl CameraController {
             self.camera.projection(aspect_ratio),
             self.camera.view(),
         )
+    }
+
+    pub fn front(&self) -> Vec3 {
+        self.camera.front()
     }
 
     pub fn zoom(&mut self, inwards: bool) {

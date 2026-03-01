@@ -15,6 +15,7 @@ pub struct ElementInfo {
 pub struct Compound {
     moniker: String,
     iupac_name: String,
+    formula: String,
     is_chiral: bool,
     atoms: Vec<Atom>,
     bonds: Vec<Bond>,
@@ -78,6 +79,7 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
     let mut compound = Compound {
         moniker: String::new(),
         iupac_name: String::new(),
+        formula: String::new(),
         is_chiral: parse::<u8>(&count_fields, 3)? == 1,
         atoms: Vec::new(),
         bonds: Vec::new(),
@@ -121,11 +123,11 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
     }
 
     for i in (5 + num_atoms + num_bonds)..lines.len() {
-        if lines[i] == "> <PUBCHEM_IUPAC_NAME>" {
-            compound.iupac_name = lines[i + 1].to_string();
-        }
-        if lines[i] == "> <PUBCHEM_IUPAC_TRADITIONAL_NAME>" {
-            compound.moniker = lines[i + 1].to_string();
+        match lines[i] {
+            "> <PUBCHEM_MOLECULAR_FORMULA>" => compound.formula = lines[i + 1].to_string(),
+            "> <PUBCHEM_IUPAC_TRADITIONAL_NAME>" => compound.moniker = lines[i + 1].to_string(),
+            "> <PUBCHEM_IUPAC_NAME>" => compound.iupac_name = lines[i + 1].to_string(),
+            _ => {}
         }
     }
 
@@ -135,17 +137,20 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
 /*
 TODO: Overhaul this:
 - Translate the entire molecule to the origin
-- Handle double, triple and aromatic bonds
+- Handle aromatic bonds
 - Scale element radii properly
     - Scale non linearly
     - Scale the radius based off of the associated bond
 - What should the default size be if the size isn't defined?
 - What should the default color be if the color isn't defined?
 - Write tests for this function on different molecules and edge cases
+- Handle all bond types properly
+- Handle all bond topologies
  */
 pub fn compound_to_shape(
     compound: &Compound,
     element_infos: &HashMap<String, ElementInfo>,
+    camera_front: Vec3,
 ) -> (Vec<Shape>, u32) {
     let max_covalent_radii = *element_infos
         .values()
@@ -171,21 +176,39 @@ pub fn compound_to_shape(
         .collect();
     let num_spheres = shapes.len() as u32;
 
-    shapes.extend(compound.bonds.iter().map(|bond| {
+    for bond in &compound.bonds {
         let start = compound.atoms[bond.src_index].position;
         let end = compound.atoms[bond.dst_index].position;
-        return Shape::Cylinder {
-            start,
-            end,
-            color: Vec3::new(0.67, 0.67, 0.67),
-            radius: 0.01,
+        let count = match bond.bond_type {
+            BondType::Double => 2,
+            BondType::Triple => 3,
+            _ => 1,
         };
-    }));
+
+        let bond_direction = (end - start).normalize();
+        let view_right = bond_direction.cross(camera_front).normalize();
+
+        let spacing = 0.2;
+        let spread = (count - 1) as f32 * spacing;
+
+        // Position the bonds spread out horizontally relative to the screen
+        // The bonds are centered in between the two atoms
+        for i in 0..count {
+            let offset = view_right * (i as f32 * spacing - spread / 2.0);
+
+            shapes.push(Shape::Cylinder {
+                start: start + offset,
+                end: end + offset,
+                color: Vec3::new(0.67, 0.67, 0.67),
+                radius: 0.045,
+            });
+        }
+    }
 
     (shapes, num_spheres)
 }
 
-pub fn load_compound(name: &str) -> Result<(Vec<Shape>, u32), String> {
+pub fn load_compound(name: &str, camera_front: Vec3) -> Result<(Vec<Shape>, u32), String> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let sdf_path = base.join(format!("data/{name}.sdf").as_str());
     let info_path = base.join("data/element_data.json");
@@ -197,7 +220,7 @@ pub fn load_compound(name: &str) -> Result<(Vec<Shape>, u32), String> {
     let contents = std::fs::read_to_string(&sdf_path).map_err(|err| err.to_string())?;
     let compound = parse_compound(&contents)?;
 
-    Ok(compound_to_shape(&compound, &info))
+    Ok(compound_to_shape(&compound, &info, camera_front))
 }
 
 mod tests {
@@ -217,6 +240,7 @@ mod tests {
         let expected = Ok(Compound {
             moniker: String::new(),
             iupac_name: String::new(),
+            formula: String::new(),
             is_chiral: false,
             atoms: vec![
                 Atom {
