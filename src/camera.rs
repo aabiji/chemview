@@ -22,7 +22,7 @@ struct Camera {
 impl Camera {
     pub fn new() -> Self {
         let pitch = 0.0f32;
-        let yaw = -90.0f32;
+        let yaw = 90.0f32;
         let front = Vec3::new(
             yaw.to_radians().cos() * pitch.to_radians().cos(),
             pitch.to_radians().sin(),
@@ -34,7 +34,7 @@ impl Camera {
             yaw,
             field_of_view: 45.0,
             front,
-            position: Vec3::new(0.0, 0.0, 3.0),
+            position: Vec3::new(0.0, 0.0, -3.0),
         }
     }
 

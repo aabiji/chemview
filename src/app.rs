@@ -1,4 +1,5 @@
 use bytemuck::offset_of;
+use glam::Vec3;
 use std::borrow::Cow;
 use std::ops::Range;
 use std::path::PathBuf;
@@ -23,8 +24,9 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
+use crate::compound::CompoundShapes;
 use crate::shader::ShaderVar;
-use crate::shape::{InstanceData, Shape, Vertex};
+use crate::shape::{InstanceData, Vertex};
 use crate::ui::DebugUI;
 use crate::{
     camera::{Action, CameraController},
@@ -318,13 +320,24 @@ impl State {
             .write_buffer(&self.buffers[2], 0, bytemuck::cast_slice(&position));
     }
 
-    pub fn set_shapes_data(&mut self, shapes: Vec<Shape>, num_spheres: u32) {
-        self.sphere_instance_range = 0..num_spheres;
-        self.cylinder_instance_range = num_spheres..shapes.len() as u32;
+    pub fn set_shapes_data(&mut self, group: CompoundShapes) {
+        let target_pos = Vec3::new(0.0, 0.0, 0.0);
+        let size = group.bounding_max - group.bounding_min;
+        let offset = (group.bounding_min + size / 2.0) - target_pos;
 
-        // NOTE: the indexes into self.buffer are taken from the order in which the shader
-        // vars are defined in the `new` functio. Make sure they match!
-        let data: Vec<InstanceData> = shapes.iter().map(|s| shape::to_raw(s)).collect();
+        self.sphere_instance_range = 0..group.num_spheres;
+        self.cylinder_instance_range = group.num_spheres..group.shapes.len() as u32;
+
+        // Center the shapes around the target position
+        let data: Vec<InstanceData> = group
+            .shapes
+            .iter()
+            .map(|s| {
+                let mut copy = s.clone();
+                copy.translate(offset);
+                shape::to_raw(&copy)
+            })
+            .collect();
         let shapes_raw = bytemuck::cast_slice(&data);
 
         assert!(shapes_raw.len() < STORAGE_BUFFE_SIZE); // TODO: handle error
@@ -424,9 +437,8 @@ impl ApplicationHandler for App {
         );
 
         let mut state = pollster::block_on(State::new(window.clone()));
-        let (shapes, num_spheres) =
-            compound::load_compound("caffeine", state.controller.front()).unwrap();
-        state.set_shapes_data(shapes, num_spheres);
+        let group = compound::load_compound("dopamine", state.controller.front()).unwrap();
+        state.set_shapes_data(group);
 
         self.state = Some(state);
         window.request_redraw();

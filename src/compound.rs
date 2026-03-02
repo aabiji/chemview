@@ -31,27 +31,7 @@ struct Atom {
 struct Bond {
     src_index: usize,
     dst_index: usize,
-    bond_type: BondType,
-    topology: BondTopology,
-}
-
-#[derive(Debug, PartialEq)]
-enum BondType {
-    Single,
-    Double,
-    Triple,
-    Aromatic,
-    SingleOrDouble,
-    SingleOrAromatic,
-    DoubleOrAromatic,
-    Any,
-}
-
-#[derive(Debug, PartialEq)]
-enum BondTopology {
-    RingOrChain,
-    Ring,
-    Chain,
+    multiplcity: usize, // single, double or triple bond
 }
 
 fn split(lines: &str, sep: char, strip: bool) -> Vec<&str> {
@@ -104,20 +84,9 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
         compound.bonds.push(Bond {
             src_index: parse::<usize>(&fields, 0)? - 1,
             dst_index: parse::<usize>(&fields, 1)? - 1,
-            bond_type: match parse::<usize>(&fields, 2)? {
-                1 => BondType::Single,
-                2 => BondType::Double,
-                3 => BondType::Triple,
-                4 => BondType::Aromatic,
-                5 => BondType::SingleOrDouble,
-                6 => BondType::SingleOrAromatic,
-                7 => BondType::DoubleOrAromatic,
-                _ => BondType::Any,
-            },
-            topology: match parse::<usize>(&fields, 5)? {
-                1 => BondTopology::Ring,
-                2 => BondTopology::Chain,
-                _ => BondTopology::RingOrChain,
+            multiplcity: match parse::<usize>(&fields, 2)? {
+                n @ 1..=3 => n,
+                m => return Err(format!("Unreconized bond type: {m}")),
             },
         });
     }
@@ -134,81 +103,121 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
     Ok(compound)
 }
 
-/*
-TODO: Overhaul this:
-- Translate the entire molecule to the origin
-- Handle aromatic bonds
-- Scale element radii properly
-    - Scale non linearly
-    - Scale the radius based off of the associated bond
-- What should the default size be if the size isn't defined?
-- What should the default color be if the color isn't defined?
-- Write tests for this function on different molecules and edge cases
-- Handle all bond types properly
-- Handle all bond topologies
- */
-pub fn compound_to_shape(
-    compound: &Compound,
-    element_infos: &HashMap<String, ElementInfo>,
-    camera_front: Vec3,
-) -> (Vec<Shape>, u32) {
-    let max_covalent_radii = *element_infos
-        .values()
-        .flat_map(|e| e.covalent_radius.iter())
-        .filter(|&&r| r != -1)
-        .max()
-        .unwrap_or(&0);
+fn atom_to_sphere(
+    atom: &Atom,
+    bond_multiplicity: usize,
+    max_radius: f32,
+    infos: &HashMap<String, ElementInfo>,
+) -> Shape {
+    let mut radius = 0;
+    let info = &infos[&atom.element];
 
-    // NOTE: To render the shapes using instancing, the spheres should come before the cylinders
-    let mut shapes: Vec<Shape> = compound
-        .atoms
-        .iter()
-        .map(|atom| {
-            let info = &element_infos[&atom.element];
-            let radius = (info.covalent_radius[0] as f32) / (max_covalent_radii as f32);
-
-            Shape::Sphere {
-                origin: atom.position,
-                color: Vec3::from_slice(&info.color),
-                radius,
-            }
-        })
-        .collect();
-    let num_spheres = shapes.len() as u32;
-
-    for bond in &compound.bonds {
-        let start = compound.atoms[bond.src_index].position;
-        let end = compound.atoms[bond.dst_index].position;
-        let count = match bond.bond_type {
-            BondType::Double => 2,
-            BondType::Triple => 3,
-            _ => 1,
-        };
-
-        let bond_direction = (end - start).normalize();
-        let view_right = bond_direction.cross(camera_front).normalize();
-
-        let spacing = 0.2;
-        let spread = (count - 1) as f32 * spacing;
-
-        // Position the bonds spread out horizontally relative to the screen
-        // The bonds are centered in between the two atoms
-        for i in 0..count {
-            let offset = view_right * (i as f32 * spacing - spread / 2.0);
-
-            shapes.push(Shape::Cylinder {
-                start: start + offset,
-                end: end + offset,
-                color: Vec3::new(0.67, 0.67, 0.67),
-                radius: 0.045,
-            });
+    // Choose the closest defined covalent radius
+    for i in (0..bond_multiplicity).rev() {
+        if info.covalent_radius[i] != -1 {
+            radius = info.covalent_radius[i];
+            break;
         }
     }
 
-    (shapes, num_spheres)
+    Shape::Sphere {
+        origin: atom.position,
+        color: Vec3::from_slice(&info.color),
+        radius: radius as f32 / max_radius,
+    }
 }
 
-pub fn load_compound(name: &str, camera_front: Vec3) -> Result<(Vec<Shape>, u32), String> {
+pub struct CompoundShapes {
+    pub shapes: Vec<Shape>,
+    pub num_spheres: u32,
+    pub bounding_min: Vec3,
+    pub bounding_max: Vec3,
+}
+
+impl CompoundShapes {
+    fn default(num_spheres: usize) -> Self {
+        let default_sphere = Shape::Sphere {
+            origin: Vec3::ZERO,
+            color: Vec3::ZERO,
+            radius: 0.0,
+        };
+
+        Self {
+            num_spheres: num_spheres as u32,
+            shapes: vec![default_sphere; num_spheres],
+            bounding_min: Vec3::new(1000000.0, 1000000.0, 1000000.0),
+            bounding_max: Vec3::new(-1000000.0, -1000000.0, -1000000.0),
+        }
+    }
+
+    fn update_bounds(&mut self, bounds: (Vec3, Vec3)) {
+        self.bounding_min = self.bounding_min.min(bounds.0);
+        self.bounding_max = self.bounding_max.max(bounds.1);
+    }
+
+    fn from(
+        compound: &Compound,
+        element_infos: &HashMap<String, ElementInfo>,
+        camera_front: Vec3,
+    ) -> Self {
+        let mut c = CompoundShapes::default(compound.atoms.len());
+
+        let max_covalent_radii = *element_infos
+            .values()
+            .flat_map(|e| e.covalent_radius.iter())
+            .filter(|&&r| r != -1)
+            .max()
+            .unwrap_or(&0) as f32;
+
+        for bond in &compound.bonds {
+            let src_sphere = atom_to_sphere(
+                &compound.atoms[bond.src_index],
+                bond.multiplcity,
+                max_covalent_radii,
+                element_infos,
+            );
+            let dst_sphere = atom_to_sphere(
+                &compound.atoms[bond.dst_index],
+                bond.multiplcity,
+                max_covalent_radii,
+                element_infos,
+            );
+
+            // Update the bounding box
+            c.update_bounds(src_sphere.bounds());
+            c.update_bounds(dst_sphere.bounds());
+
+            // Update the radius of the bonded atoms
+            c.shapes[bond.src_index] = src_sphere;
+            c.shapes[bond.dst_index] = dst_sphere;
+
+            // Position the bonds spread out horizontally relative to the screen
+            // The bonds are centered in between the two atoms
+            let start = compound.atoms[bond.src_index].position;
+            let end = compound.atoms[bond.dst_index].position;
+
+            let bond_direction = (end - start).normalize();
+            let view_right = bond_direction.cross(camera_front).normalize();
+
+            let spacing = 0.2;
+            let spread = (bond.multiplcity - 1) as f32 * spacing;
+
+            for i in 0..bond.multiplcity {
+                let offset = view_right * (i as f32 * spacing - spread / 2.0);
+                c.shapes.push(Shape::Cylinder {
+                    start: start + offset,
+                    end: end + offset,
+                    color: Vec3::new(0.67, 0.67, 0.67),
+                    radius: 0.045,
+                });
+            }
+        }
+
+        c
+    }
+}
+
+pub fn load_compound(name: &str, camera_front: Vec3) -> Result<CompoundShapes, String> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let sdf_path = base.join(format!("data/{name}.sdf").as_str());
     let info_path = base.join("data/element_data.json");
@@ -220,13 +229,13 @@ pub fn load_compound(name: &str, camera_front: Vec3) -> Result<(Vec<Shape>, u32)
     let contents = std::fs::read_to_string(&sdf_path).map_err(|err| err.to_string())?;
     let compound = parse_compound(&contents)?;
 
-    Ok(compound_to_shape(&compound, &info, camera_front))
+    Ok(CompoundShapes::from(&compound, &info, camera_front))
 }
 
 mod tests {
     #[test]
     fn test_parser() {
-        use crate::compound::{Atom, Bond, BondTopology, BondType, Compound, parse_compound};
+        use crate::compound::{Atom, Bond, Compound, parse_compound};
         use glam::Vec3;
         let content = "783
                 -OEChem-02172615072D
@@ -255,8 +264,7 @@ mod tests {
             bonds: vec![Bond {
                 src_index: 0,
                 dst_index: 1,
-                bond_type: BondType::Single,
-                topology: BondTopology::RingOrChain,
+                multiplcity: 1,
             }],
         });
         assert!(parse_compound(content) == expected);

@@ -3,6 +3,7 @@ use glam::{Mat4, Quat, Vec3};
 use std::f32::consts::PI;
 use std::ops::Range;
 
+#[derive(Clone)]
 pub enum Shape {
     Sphere {
         origin: Vec3,
@@ -15,6 +16,28 @@ pub enum Shape {
         color: Vec3,
         radius: f32,
     },
+}
+
+impl Shape {
+    pub fn bounds(&self) -> (Vec3, Vec3) {
+        match *self {
+            Shape::Sphere { origin, radius, .. } => (
+                origin - Vec3::splat(radius), // leftmost, bottommost, innermost
+                origin + Vec3::splat(radius), // rightmost, topmost, outermost
+            ),
+            Shape::Cylinder { .. } => (Vec3::ZERO, Vec3::ZERO),
+        }
+    }
+
+    pub fn translate(&mut self, offset: Vec3) {
+        match self {
+            Shape::Sphere { origin, .. } => *origin -= offset,
+            Shape::Cylinder { start, end, .. } => {
+                *start -= offset;
+                *end -= offset;
+            }
+        }
+    }
 }
 
 #[repr(C)]
