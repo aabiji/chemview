@@ -437,7 +437,8 @@ impl ApplicationHandler for App {
         );
 
         let mut state = pollster::block_on(State::new(window.clone()));
-        let group = compound::load_compound("dopamine", state.controller.front()).unwrap();
+        let group =
+            compound::load_compound("chlorophyll_c", false, state.controller.front()).unwrap();
         state.set_shapes_data(group);
 
         self.state = Some(state);

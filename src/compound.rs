@@ -107,16 +107,25 @@ fn atom_to_sphere(
     atom: &Atom,
     bond_multiplicity: usize,
     max_radius: f32,
+    use_waal_radius: bool,
     infos: &HashMap<String, ElementInfo>,
 ) -> Shape {
-    let mut radius = 0;
     let info = &infos[&atom.element];
 
-    // Choose the closest defined covalent radius
-    for i in (0..bond_multiplicity).rev() {
-        if info.covalent_radius[i] != -1 {
-            radius = info.covalent_radius[i];
-            break;
+    let mut radius = 0.0;
+    if use_waal_radius {
+        radius = if info.waal_radius == -1 {
+            1.0
+        } else {
+            info.waal_radius as f32
+        };
+    } else {
+        // Choose the closest defined covalent radius
+        for i in (0..bond_multiplicity).rev() {
+            if info.covalent_radius[i] != -1 {
+                radius = info.covalent_radius[i] as f32;
+                break;
+            }
         }
     }
 
@@ -159,6 +168,7 @@ impl CompoundShapes {
         compound: &Compound,
         element_infos: &HashMap<String, ElementInfo>,
         camera_front: Vec3,
+        use_waal_radius: bool,
     ) -> Self {
         let mut c = CompoundShapes::default(compound.atoms.len());
 
@@ -174,12 +184,14 @@ impl CompoundShapes {
                 &compound.atoms[bond.src_index],
                 bond.multiplcity,
                 max_covalent_radii,
+                use_waal_radius,
                 element_infos,
             );
             let dst_sphere = atom_to_sphere(
                 &compound.atoms[bond.dst_index],
                 bond.multiplcity,
                 max_covalent_radii,
+                use_waal_radius,
                 element_infos,
             );
 
@@ -191,25 +203,28 @@ impl CompoundShapes {
             c.shapes[bond.src_index] = src_sphere;
             c.shapes[bond.dst_index] = dst_sphere;
 
-            // Position the bonds spread out horizontally relative to the screen
-            // The bonds are centered in between the two atoms
-            let start = compound.atoms[bond.src_index].position;
-            let end = compound.atoms[bond.dst_index].position;
+            // Only need to render bonds in the ball and stick model
+            if !use_waal_radius {
+                // Position the bonds spread out horizontally relative to the screen
+                // The bonds are centered in between the two atoms
+                let start = compound.atoms[bond.src_index].position;
+                let end = compound.atoms[bond.dst_index].position;
 
-            let bond_direction = (end - start).normalize();
-            let view_right = bond_direction.cross(camera_front).normalize();
+                let bond_direction = (end - start).normalize();
+                let view_right = bond_direction.cross(camera_front).normalize();
 
-            let spacing = 0.2;
-            let spread = (bond.multiplcity - 1) as f32 * spacing;
+                let spacing = 0.2;
+                let spread = (bond.multiplcity - 1) as f32 * spacing;
 
-            for i in 0..bond.multiplcity {
-                let offset = view_right * (i as f32 * spacing - spread / 2.0);
-                c.shapes.push(Shape::Cylinder {
-                    start: start + offset,
-                    end: end + offset,
-                    color: Vec3::new(0.67, 0.67, 0.67),
-                    radius: 0.045,
-                });
+                for i in 0..bond.multiplcity {
+                    let offset = view_right * (i as f32 * spacing - spread / 2.0);
+                    c.shapes.push(Shape::Cylinder {
+                        start: start + offset,
+                        end: end + offset,
+                        color: Vec3::new(0.67, 0.67, 0.67),
+                        radius: 0.045,
+                    });
+                }
             }
         }
 
@@ -217,7 +232,11 @@ impl CompoundShapes {
     }
 }
 
-pub fn load_compound(name: &str, camera_front: Vec3) -> Result<CompoundShapes, String> {
+pub fn load_compound(
+    name: &str,
+    use_waal_radius: bool,
+    camera_front: Vec3,
+) -> Result<CompoundShapes, String> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let sdf_path = base.join(format!("data/{name}.sdf").as_str());
     let info_path = base.join("data/element_data.json");
@@ -229,7 +248,12 @@ pub fn load_compound(name: &str, camera_front: Vec3) -> Result<CompoundShapes, S
     let contents = std::fs::read_to_string(&sdf_path).map_err(|err| err.to_string())?;
     let compound = parse_compound(&contents)?;
 
-    Ok(CompoundShapes::from(&compound, &info, camera_front))
+    Ok(CompoundShapes::from(
+        &compound,
+        &info,
+        camera_front,
+        use_waal_radius,
+    ))
 }
 
 mod tests {

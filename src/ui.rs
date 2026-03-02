@@ -108,9 +108,12 @@ impl DebugUI {
         egui::SidePanel::left("Debug")
             .exact_width(200.0)
             .show(ctx, |ui| {
+                // FPS count
                 ui.label("Moniker");
                 ui.label("IUPAC: ");
                 ui.label("Formula: ");
+                // Space filling checkbox
+                // Input to sdf file path
             });
     }
 }

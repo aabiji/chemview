@@ -8,13 +8,12 @@ Ressources:
 - [Atomic Radius in the Periodic Table of Elements](https://pubchem.ncbi.nlm.nih.gov/ptable/atomic-radius/)
 - [OpenGL Cylinder, Prism & Pipe](https://www.songho.ca/opengl/gl_cylinder.html)
 - [OpenGL Sphere](https://www.songho.ca/opengl/gl_sphere.html)
+- [Claude](https://claude.ai/), mainly used for drafting an initial implementation roadmap
 
-- [egui_wgpu](https://docs.rs/egui-wgpu/latest/egui_wgpu/)
+- [PDB-101](https://pdb101.rcsb.org/)
+- [PDBx/mmCIF](https://charmm-gui.org/?doc=lecture&module=pdb&lesson=4)
 
-Notes:
-- Port to winit 0.31.0 once it comes out of beta, although the new api is different from the stable one
-
-Part 1:
+Part 1 -> Small molecule viewer:
 - [x] Basic SDF parser with tests
 
 - [x] WGPU usage:
@@ -36,24 +35,50 @@ Part 1:
   - [x] Integrate with egui to render fps
   - [x] Improve camera movement, panning and zooming
 
-- [ ] Render the atoms and bonds in a molecule
+- [x] Render the atoms and bonds in a molecule
   - [x] Map the parsed `Compound` into `Vec<Shape>`
-  - [ ] Feature complete ball and stick model
-  - [ ] Feature complete space filling model
+  - [x] Feature complete ball and stick model
+  - [x] Feature complete space filling model
 
+Part 1.5 -> Improve UX:
+- [ ] Show compound info in the ui
+- [ ] Dropdown menu to change the visualizer type
+- [ ] Update the compound shown from the value of an input field
+- [ ] Fixed position camera, mouse rotates the compound itself, not the scene
+- [ ] Toggle wireframe mode
+- [ ] There must be a smarter way to draw shapes without have to use many triangles
+- [ ] Smooth switching from protein rendering mode to compound rendering mode.
+- [ ] Refactor those two modes into one
 
-Part 2:
-- mmCIF parser, test with real data from the Protein Data Bank
+Part 2 -> Render proteins:
+- [ ] Parse mmCIF files
+  - [ ] Get test data from the Protein Data Bank
+  - [ ] Answer questions:
+    - Are bonds explicit like in SDF, or inferrred?
+    - Are H atoms inferred?
+  - [ ] KD-trees for spatial queries???
 
-- Full structural hierarchy: Model -> Chain -> Residue -> Atom
+- Render the protein
+  - [ ] Space filling model
+    - [ ] The protein will have several orders of magnitude more atoms than
+          the simple compounds, so research several techniques to optimize rendering
+    - [ ] Implement frustrum culling: don't render objects outside of the camera's view
+    - [ ] Level of detail: switch between different representations based off of the zoom level
 
-- Infer bond using covalent radii and distance thresholds when needed
+  - [ ] Cartoon model
+    - [ ] Render ribbons for helices, arrows for beta strands, tubes for loops. To do this,
+          I need to know which *residues* are alpha helicies, beta shets or coils.
+          Implement the **DSSP** (Define Secondary STructure of Proteins) to figure that out
+    - [ ] Use the alpha carbon atom from each residue to use as positions for control points.
+          Explore using Catmull-Rom or cubix Hermite spline through the control points
+    - [ ] Build the ribbon geometry using a Fresnet-Serret frame. Add arrow heads for beta strands
 
-- Rendering protein using ribbons, also detecting and rendering Helix, Beta sheets, Coils, etc
+  - [ ] Surface model
+      - ???
 
-- Performance engineering to render thousands of atoms while maintaining 60 fps without a beefy gpu
+Part 3 -> Wild ideas:
+- Visualize a chemical reaction as it happens?
 
-Part 3:
-- You know what would be really cool? Being able to step through and simulate chemical reactions.
-  In other words, visualize a chemical equation.
-- Port to WASM, add a basic UI to select/search for files, ask for feedback from actual scientists
+- Search for compounds using `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/aspirin/SDF?record_type=3d`
+
+- Port to WASM, host on github pages, ask for feedback from actual scientists
