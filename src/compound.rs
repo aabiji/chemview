@@ -2,7 +2,6 @@ use crate::shape::Shape;
 use glam::Vec3;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 #[derive(Deserialize)]
 pub struct ElementInfo {
@@ -11,12 +10,10 @@ pub struct ElementInfo {
     color: [f32; 3],
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq)]
 pub struct Compound {
-    moniker: String,
-    iupac_name: String,
-    formula: String,
-    is_chiral: bool,
+    pub name: String,
+    pub formula: String,
     atoms: Vec<Atom>,
     bonds: Vec<Bond>,
 }
@@ -57,10 +54,8 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
     let num_bonds = parse::<usize>(&count_fields, 1)?;
 
     let mut compound = Compound {
-        moniker: String::new(),
-        iupac_name: String::new(),
+        name: String::new(),
         formula: String::new(),
-        is_chiral: parse::<u8>(&count_fields, 3)? == 1,
         atoms: Vec::new(),
         bonds: Vec::new(),
     };
@@ -91,11 +86,19 @@ pub fn parse_compound(contents: &str) -> Result<Compound, String> {
         });
     }
 
+    let mut saw_iupac = false;
     for i in (5 + num_atoms + num_bonds)..lines.len() {
         match lines[i] {
             "> <PUBCHEM_MOLECULAR_FORMULA>" => compound.formula = lines[i + 1].to_string(),
-            "> <PUBCHEM_IUPAC_TRADITIONAL_NAME>" => compound.moniker = lines[i + 1].to_string(),
-            "> <PUBCHEM_IUPAC_NAME>" => compound.iupac_name = lines[i + 1].to_string(),
+            "> <PUBCHEM_IUPAC_TRADITIONAL_NAME>" => {
+                if !saw_iupac {
+                    compound.name = lines[i + 1].to_string();
+                }
+            }
+            "> <PUBCHEM_IUPAC_NAME>" => {
+                compound.name = lines[i + 1].to_string();
+                saw_iupac = true;
+            }
             _ => {}
         }
     }
@@ -136,6 +139,7 @@ fn atom_to_sphere(
     }
 }
 
+#[derive(Default)]
 pub struct CompoundShapes {
     pub shapes: Vec<Shape>,
     pub num_spheres: u32,
@@ -164,7 +168,7 @@ impl CompoundShapes {
         self.bounding_max = self.bounding_max.max(bounds.1);
     }
 
-    fn from(
+    pub fn from(
         compound: &Compound,
         element_infos: &HashMap<String, ElementInfo>,
         camera_front: Vec3,
@@ -232,30 +236,6 @@ impl CompoundShapes {
     }
 }
 
-pub fn load_compound(
-    name: &str,
-    use_waal_radius: bool,
-    camera_front: Vec3,
-) -> Result<CompoundShapes, String> {
-    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let sdf_path = base.join(format!("data/{name}.sdf").as_str());
-    let info_path = base.join("data/element_data.json");
-
-    let contents = std::fs::read_to_string(info_path).map_err(|err| err.to_string())?;
-    let info: HashMap<String, ElementInfo> =
-        serde_json::from_str(&contents).map_err(|err| err.to_string())?;
-
-    let contents = std::fs::read_to_string(&sdf_path).map_err(|err| err.to_string())?;
-    let compound = parse_compound(&contents)?;
-
-    Ok(CompoundShapes::from(
-        &compound,
-        &info,
-        camera_front,
-        use_waal_radius,
-    ))
-}
-
 mod tests {
     #[test]
     fn test_parser() {
@@ -271,10 +251,8 @@ mod tests {
             M  END
         ";
         let expected = Ok(Compound {
-            moniker: String::new(),
-            iupac_name: String::new(),
+            name: String::new(),
             formula: String::new(),
-            is_chiral: false,
             atoms: vec![
                 Atom {
                     position: Vec3::new(2.0, 0.0, 0.0),

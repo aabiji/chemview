@@ -11,7 +11,7 @@ Ressources:
 - [Claude](https://claude.ai/), mainly used for drafting an initial implementation roadmap
 
 - [PDB-101](https://pdb101.rcsb.org/)
-- [PDBx/mmCIF](https://charmm-gui.org/?doc=lecture&module=pdb&lesson=4)
+- [PDBx/mmCIF User Giude](https://mmcif.wwpdb.org/docs/user-guide/guide.html)
 
 Part 1 -> Small molecule viewer:
 - [x] Basic SDF parser with tests
@@ -41,11 +41,7 @@ Part 1 -> Small molecule viewer:
   - [x] Feature complete space filling model
 
 Part 1.5 -> Improve UX:
-- [ ] Show compound info in the ui
-- [ ] Dropdown menu to change the visualizer type
-- [ ] Update the compound shown from the value of an input field
 - [ ] Fixed position camera, mouse rotates the compound itself, not the scene
-- [ ] Toggle wireframe mode
 - [ ] There must be a smarter way to draw shapes without have to use many triangles
 - [ ] Smooth switching from protein rendering mode to compound rendering mode.
 - [ ] Refactor those two modes into one

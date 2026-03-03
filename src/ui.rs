@@ -43,17 +43,18 @@ impl DebugUI {
         self.state.on_window_event(window, event).consumed
     }
 
-    pub fn render(
+    pub fn render<F: Fn(&egui::Context)>(
         &mut self,
         device: &Device,
         window: &Window,
         queue: &Queue,
         encoder: &mut CommandEncoder,
         surface_texture_view: &TextureView,
+        callback: F,
     ) {
         let raw_input = self.state.take_egui_input(&window);
 
-        let full_output = self.context.run(raw_input, |ctx| self.render_ui(ctx));
+        let full_output = self.context.run(raw_input, |ctx| callback(ctx));
         self.state
             .handle_platform_output(window, full_output.platform_output);
 
@@ -102,18 +103,5 @@ impl DebugUI {
         for id in &full_output.textures_delta.free {
             self.renderer.free_texture(id);
         }
-    }
-
-    fn render_ui(&self, ctx: &egui::Context) {
-        egui::SidePanel::left("Debug")
-            .exact_width(200.0)
-            .show(ctx, |ui| {
-                // FPS count
-                ui.label("Moniker");
-                ui.label("IUPAC: ");
-                ui.label("Formula: ");
-                // Space filling checkbox
-                // Input to sdf file path
-            });
     }
 }
