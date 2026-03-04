@@ -120,6 +120,12 @@ impl Renderer {
             ShaderVar {
                 is_f32: true,
                 is_storage: false,
+                num_bytes: 16,
+                label: String::from("Object rotation"),
+            },
+            ShaderVar {
+                is_f32: true,
+                is_storage: false,
                 num_bytes: 4,
                 label: String::from("Camera position"),
             },
@@ -297,7 +303,7 @@ impl Renderer {
         // NOTE: the indexes into self.buffer are taken from the order in which the shader
         // vars are defined in the `new` functio. Make sure they match!
         let ratio = (self.window_size.width as f32) / (self.window_size.height as f32);
-        let (position, projection, view) = self.controller.camera_state(ratio);
+        let (position, projection, view, object_rotation) = self.controller.camera_state(ratio);
 
         self.queue
             .write_buffer(&self.buffers[0], 0, bytemuck::cast_slice(&projection));
@@ -306,7 +312,10 @@ impl Renderer {
             .write_buffer(&self.buffers[1], 0, bytemuck::cast_slice(&view));
 
         self.queue
-            .write_buffer(&self.buffers[2], 0, bytemuck::cast_slice(&position));
+            .write_buffer(&self.buffers[2], 0, bytemuck::cast_slice(&object_rotation));
+
+        self.queue
+            .write_buffer(&self.buffers[3], 0, bytemuck::cast_slice(&position));
     }
 
     pub fn set_mesh_data(&mut self, mesh: &CompoundMesh) {
@@ -330,7 +339,7 @@ impl Renderer {
         let shapes_raw = bytemuck::cast_slice(&data);
 
         assert!(shapes_raw.len() < STORAGE_BUFFE_SIZE); // TODO: handle error
-        self.queue.write_buffer(&self.buffers[3], 0, shapes_raw); // Shapes data
+        self.queue.write_buffer(&self.buffers[4], 0, shapes_raw); // Shapes data
     }
 
     fn render_shapes(&mut self, encoder: &mut CommandEncoder, surface_texture_view: &TextureView) {

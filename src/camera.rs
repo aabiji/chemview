@@ -1,4 +1,4 @@
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat4, Quat, Vec2, Vec3};
 use std::collections::HashSet;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -12,29 +12,22 @@ pub enum Action {
 }
 
 struct Camera {
+    pub front: Vec3,
     position: Vec3,
+    field_of_view: f32,
+
     pitch: f32,
     yaw: f32,
-    field_of_view: f32,
-    front: Vec3,
 }
 
 impl Camera {
     pub fn new() -> Self {
-        let pitch = 0.0f32;
-        let yaw = 90.0f32;
-        let front = Vec3::new(
-            yaw.to_radians().cos() * pitch.to_radians().cos(),
-            pitch.to_radians().sin(),
-            yaw.to_radians().sin() * pitch.to_radians().cos(),
-        )
-        .normalize();
         Self {
-            pitch,
-            yaw,
+            pitch: 0.0,
+            yaw: 0.0,
             field_of_view: 45.0,
-            front,
-            position: Vec3::new(0.0, 0.0, -3.0),
+            front: Vec3::new(0.0, 0.0, 1.0),
+            position: Vec3::new(0.0, 0.0, -10.0),
         }
     }
 
@@ -51,8 +44,20 @@ impl Camera {
         Mat4::look_at_rh(self.position, self.position + self.front, Vec3::Y).to_cols_array_2d()
     }
 
-    pub fn front(&self) -> Vec3 {
-        self.front
+    // NOTE: Rotation is meant for a central object, not the camera itself
+    fn rotate(&mut self, delta_x: f32, delta_y: f32) {
+        self.yaw += delta_x;
+        self.pitch = (self.pitch + delta_y).clamp(-89.9, 89.9);
+    }
+
+    fn rotation_matrix(&self) -> [[f32; 4]; 4] {
+        let rotation = Quat::from_rotation_y(self.yaw) * Quat::from_rotation_x(self.pitch);
+        Mat4::from_quat(rotation).to_cols_array_2d()
+    }
+
+    fn zoom(&mut self, inwards: bool) {
+        let offset = if inwards { -1.0 } else { 1.0 };
+        self.field_of_view = (self.field_of_view + offset).clamp(1.0, 45.0);
     }
 
     fn translate(&mut self, m: Action, speed: f32) {
@@ -67,23 +72,6 @@ impl Camera {
             Action::Forward => self.position += front * speed,
             Action::Backward => self.position -= front * speed,
         }
-    }
-
-    fn rotate(&mut self, delta_x: f32, delta_y: f32) {
-        self.yaw += delta_x;
-        self.pitch = (self.pitch + delta_y).clamp(-89.9, 89.9);
-
-        let front = Vec3::new(
-            self.yaw.to_radians().cos() * self.pitch.to_radians().cos(),
-            self.pitch.to_radians().sin(),
-            self.yaw.to_radians().sin() * self.pitch.to_radians().cos(),
-        );
-        self.front = front.normalize();
-    }
-
-    fn zoom(&mut self, inwards: bool) {
-        let offset = if inwards { -1.0 } else { 1.0 };
-        self.field_of_view = (self.field_of_view + offset).clamp(1.0, 45.0);
     }
 }
 
@@ -105,21 +93,25 @@ impl CameraController {
             mouse_down: false,
             prev_mouse: Vec2::new(0.0, 0.0),
             mouse_delta: Vec2::new(0.0, 0.0),
-            sensitivity: 2.5,
+            sensitivity: 0.25,
             speed: 2.5,
         }
     }
 
-    pub fn camera_state(&self, aspect_ratio: f32) -> ([f32; 4], [[f32; 4]; 4], [[f32; 4]; 4]) {
+    pub fn camera_state(
+        &self,
+        aspect_ratio: f32,
+    ) -> ([f32; 4], [[f32; 4]; 4], [[f32; 4]; 4], [[f32; 4]; 4]) {
         (
             self.camera.position(),
             self.camera.projection(aspect_ratio),
             self.camera.view(),
+            self.camera.rotation_matrix(),
         )
     }
 
     pub fn front(&self) -> Vec3 {
-        self.camera.front()
+        self.camera.front
     }
 
     pub fn zoom(&mut self, inwards: bool) {

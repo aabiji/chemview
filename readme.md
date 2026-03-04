@@ -41,7 +41,7 @@ Part 1 -> Small molecule viewer:
   - [x] Feature complete space filling model
 
 Part 1.5 -> Improve UX:
-- [ ] Fixed position camera, mouse rotates the compound itself, not the scene
+- [x] Fixed position camera, mouse rotates the compound itself, not the scene
 - [ ] There must be a smarter way to draw shapes without have to use many triangles
 - [ ] Smooth switching from protein rendering mode to compound rendering mode.
 - [ ] Refactor those two modes into one

@@ -13,8 +13,9 @@ struct VertexOutput {
 // NOTE: Uniforms must be 16-byte aligned
 @group(0) @binding(0) var<uniform> projection_matrix: mat4x4<f32>;
 @group(0) @binding(1) var<uniform> view_matrix: mat4x4<f32>;
-@group(0) @binding(2) var<uniform> camera_pos: vec4<f32>;
-@group(0) @binding(3) var<storage, read> instance_data: array<InstanceData>;
+@group(0) @binding(2) var<uniform> object_rotation: mat4x4<f32>;
+@group(0) @binding(3) var<uniform> camera_pos: vec4<f32>;
+@group(0) @binding(4) var<storage, read> instance_data: array<InstanceData>;
 
 @vertex
 fn vertex_shader(
@@ -24,7 +25,7 @@ fn vertex_shader(
 ) -> VertexOutput {
     let instance = instance_data[instance_index];
     var v: VertexOutput;
-    v.world_pos = instance.model * position;
+    v.world_pos = object_rotation * instance.model * position;
     v.pos = projection_matrix * view_matrix * v.world_pos;
     v.normal = normal;
     v.color = instance.color;
