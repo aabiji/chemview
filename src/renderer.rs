@@ -6,23 +6,21 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::SystemTime;
 use wgpu::{
-    BindGroup, Buffer, BufferAddress, BufferUsages, CommandEncoder, DepthBiasRenderer,
-    DepthStencilRenderer, Device, DeviceDescriptor, Extent3d, FragmentRenderer, LoadOp,
-    MultisampleRenderer, Operations, PipelineLayoutDescriptor, PrimitiveRenderer, Queue,
-    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
-    StencilRenderer, Surface, TextureDescriptor, TextureFormat, TextureUsages, TextureView,
-    TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexRenderer,
-    VertexStepMode,
+    BindGroup, Buffer, BufferAddress, BufferUsages, CommandEncoder, DepthBiasState,
+    DepthStencilState, Device, DeviceDescriptor, Extent3d, FragmentState, LoadOp, MultisampleState,
+    Operations, PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, StencilState, Surface,
+    TextureDescriptor, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
     util::{BufferInitDescriptor, DeviceExt},
 };
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::camera::CameraController;
-use crate::compound::CompoundShapes;
 use crate::shader::ShaderVar;
 use crate::shape::{InstanceData, Vertex};
 use crate::ui::DebugUI;
+use crate::{camera::CameraController, compound::CompoundMesh};
 use crate::{shader, shape};
 
 // The maximum size in bytes of a storage buffer will be 10 MB
@@ -31,7 +29,7 @@ const STORAGE_BUFFE_SIZE: usize = 10 * 1024 * 1024;
 const MSAA_SAMPLE_COUNT: u32 = 4;
 
 pub struct Renderer {
-    window: Arc<Window>,
+    pub window: Arc<Window>,
     window_size: PhysicalSize<u32>,
 
     device: Device,
@@ -82,7 +80,7 @@ impl Renderer {
         });
 
         let (vertices, indices, sphere_index_range, cylinder_index_range) =
-            shape::create_mesh_buffers(32, 32, 1.0, 1.0);
+            shape::create_shape_mesh_buffers(32, 32, 1.0, 1.0);
 
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex buffer"),
@@ -159,32 +157,32 @@ impl Renderer {
                 bind_group_layouts: &[&bind_group_layout],
                 push_constant_ranges: &[],
             })),
-            vertex: VertexRenderer {
+            vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vertex_shader"),
                 buffers: &vertex_buffers,
                 compilation_options: Default::default(),
             },
-            fragment: Some(FragmentRenderer {
+            fragment: Some(FragmentState {
                 module: &shader,
                 entry_point: Some("fragment_shader"),
                 targets: &[Some(surface_format.add_srgb_suffix().into())],
                 compilation_options: Default::default(),
             }),
-            primitive: PrimitiveRenderer {
+            primitive: PrimitiveState {
                 cull_mode: None,
                 ..Default::default()
             },
-            depth_stencil: Some(DepthStencilRenderer {
+            depth_stencil: Some(DepthStencilState {
                 format: TextureFormat::Depth24Plus,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: StencilRenderer::default(),
-                bias: DepthBiasRenderer::default(),
+                stencil: StencilState::default(),
+                bias: DepthBiasState::default(),
             }),
-            multisample: MultisampleRenderer {
+            multisample: MultisampleState {
                 count: MSAA_SAMPLE_COUNT,
-                ..MultisampleRenderer::default()
+                ..MultisampleState::default()
             },
             cache: None,
             multiview: None,
@@ -311,16 +309,16 @@ impl Renderer {
             .write_buffer(&self.buffers[2], 0, bytemuck::cast_slice(&position));
     }
 
-    pub fn set_shapes_data(&mut self, group: CompoundShapes) {
+    pub fn set_mesh_data(&mut self, mesh: &CompoundMesh) {
         let target_pos = Vec3::new(0.0, 0.0, 0.0);
-        let size = group.bounding_max - group.bounding_min;
-        let offset = (group.bounding_min + size / 2.0) - target_pos;
+        let size = mesh.bounding_max - mesh.bounding_min;
+        let offset = (mesh.bounding_min + size / 2.0) - target_pos;
 
-        self.sphere_instance_range = 0..group.num_spheres;
-        self.cylinder_instance_range = group.num_spheres..group.shapes.len() as u32;
+        self.sphere_instance_range = 0..mesh.num_spheres;
+        self.cylinder_instance_range = mesh.num_spheres..mesh.shapes.len() as u32;
 
         // Center the shapes around the target position
-        let data: Vec<InstanceData> = group
+        let data: Vec<InstanceData> = mesh
             .shapes
             .iter()
             .map(|s| {
@@ -386,7 +384,7 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render<F: FnMut(&egui::Context)>(&mut self, ui_callback: &mut F) {
         let surface_texture = self.surface.get_current_texture().unwrap();
         let surface_texture_view = surface_texture.texture.create_view(&TextureViewDescriptor {
             format: Some(self.surface_format.add_srgb_suffix()),
@@ -402,6 +400,7 @@ impl Renderer {
             &self.queue,
             &mut encoder,
             &surface_texture_view,
+            ui_callback,
         );
 
         self.queue.submit([encoder.finish()]);

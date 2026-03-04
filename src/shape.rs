@@ -204,7 +204,7 @@ fn generate_cylinder_mesh(
 
 // Create a vertex buffer and an index buffer that combines the vertices and
 // indices for sphere and cylinders, demarkated by index ranges
-pub fn create_mesh_buffers(
+pub fn create_shape_mesh_buffers(
     stack_count: usize,
     sector_count: usize,
     radius: f32,

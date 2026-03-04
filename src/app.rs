@@ -1,64 +1,33 @@
 use glam::Vec3;
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
-    event::{KeyEvent, MouseButton, MouseScrollDelta, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    event::{ElementState, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent},
+    event_loop::ActiveEventLoop,
     keyboard::{Key, NamedKey},
     window::{WindowAttributes, WindowId},
 };
 
-use crate::compound::{Compound, CompoundShapes, ElementInfo};
 use crate::renderer::Renderer;
 use crate::{camera::Action, compound};
 
-pub enum ViewType {
+#[derive(PartialEq)]
+enum ViewType {
     BallAndStick,
     SpacingFilling,
 }
 
-pub struct AppState {
-    pub compound: Compound,
-    pub shapes: CompoundShapes,
-    pub file_path: PathBuf,
-    pub view_type: ViewType,
-    pub wireframe_mode: bool,
-    pub fps: f32,
+struct UIState {
+    compound_formula: String,
+    compound_name: String,
+    file_path: String,
+    view_type: ViewType,
+    wireframe_mode: bool,
+    fps: f32,
 }
 
-impl AppState {
-    fn default() -> Self {
-        Self {
-            compound: Compound::default(),
-            shapes: CompoundShapes::default(),
-            file_path: PathBuf::new(),
-            view_type: ViewType::BallAndStick,
-            wireframe_mode: false,
-            fps: 0.0,
-        }
-    }
-
-    fn load_compound(&mut self, camera_front: Vec3) -> Result<(), String> {
-        let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let path_str = self.file_path.file_name().unwrap().to_str().unwrap();
-        let sdf_path = base.join(format!("data/{}", path_str).as_str());
-        let info_path = base.join("data/element_data.json");
-
-        let contents = std::fs::read_to_string(info_path).map_err(|err| err.to_string())?;
-        let info: HashMap<String, ElementInfo> =
-            serde_json::from_str(&contents).map_err(|err| err.to_string())?;
-
-        let contents = std::fs::read_to_string(&sdf_path).map_err(|err| err.to_string())?;
-        self.compound = compound::parse_compound(&contents)?;
-
-        self.shapes = CompoundShapes::from(&self.compound, &info, camera_front, false);
-
-        Ok(())
-    }
-
-    fn render_viewer_info(&mut self, ctx: &egui::Context) {
+impl UIState {
+    fn render(&mut self, ctx: &egui::Context) {
         egui::Window::new("Debug").show(ctx, |ui| {
             ui.label(format!("FPS: {}", self.fps));
 
@@ -68,12 +37,12 @@ impl AppState {
             }
 
             ui.horizontal(|h_ui| {
-                h_ui.heading(&format!("{}", self.compound.name));
-                h_ui.heading(&format!("{}", self.compound.formula));
+                h_ui.heading(&format!("{}", self.compound_name));
+                h_ui.heading(&format!("{}", self.compound_formula));
             });
 
             egui::ComboBox::from_label("Visualizer type")
-                .selected_text(format!("{:?}", self.view_type))
+                .selected_text("Selected")
                 .show_ui(ui, |combo_ui| {
                     combo_ui.selectable_value(
                         &mut self.view_type,
@@ -92,10 +61,46 @@ impl AppState {
     }
 }
 
-#[derive(Default)]
 pub struct App {
     renderer: Option<Renderer>,
-    state: AppState,
+    state: UIState,
+}
+
+impl App {
+    pub fn default() -> Self {
+        Self {
+            state: UIState {
+                compound_formula: String::new(),
+                compound_name: String::new(),
+                file_path: String::from("/home/aabiji/dev/chemview/data/dopamine.sdf"),
+                view_type: ViewType::BallAndStick,
+                wireframe_mode: false,
+                fps: 0.0,
+            },
+            renderer: None,
+        }
+    }
+
+    fn load_compound(&mut self, camera_front: Vec3) -> Result<(), String> {
+        let info = compound::load_element_info()?;
+        let contents =
+            std::fs::read_to_string(&self.state.file_path).map_err(|err| err.to_string())?;
+
+        let (name, formula, atoms, bonds) = compound::parse_compound(&contents)?;
+        let mesh = compound::assemble_mesh(
+            atoms,
+            bonds,
+            &info,
+            camera_front,
+            self.state.view_type == ViewType::SpacingFilling,
+        );
+
+        self.renderer.as_mut().unwrap().set_mesh_data(&mesh);
+        self.state.compound_name = name;
+        self.state.compound_formula = formula;
+
+        Ok(())
+    }
 }
 
 impl ApplicationHandler for App {
@@ -111,17 +116,16 @@ impl ApplicationHandler for App {
                 .unwrap(),
         );
 
-        let mut renderer = pollster::block_on(Renderer::new(window.clone()));
-        let group =
-            compound::load_compound("chlorophyll_c", false, renderer.controller.front()).unwrap();
-        renderer.set_shapes_data(group);
-
-        self.renderer = Some(state);
+        let renderer = pollster::block_on(Renderer::new(window.clone()));
+        let front = renderer.controller.front();
+        self.renderer = Some(renderer);
+        self.load_compound(front).unwrap();
         window.request_redraw();
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         let renderer = self.renderer.as_mut().unwrap();
+        let mut callback = |ctx: &egui::Context| self.state.render(ctx);
 
         let egui_consummed = renderer.ui.on_window_event(&renderer.window, &event);
         if egui_consummed {
@@ -130,7 +134,7 @@ impl ApplicationHandler for App {
 
         match event {
             WindowEvent::RedrawRequested => {
-                renderer.render();
+                renderer.render(&mut callback);
                 renderer.get_window().request_redraw();
             }
 
@@ -197,14 +201,4 @@ impl ApplicationHandler for App {
             _ => {}
         }
     }
-}
-
-pub fn launch() {
-    env_logger::init();
-
-    let event_loop = EventLoop::new().unwrap();
-    event_loop.set_control_flow(ControlFlow::Poll);
-
-    let mut app = App::default();
-    event_loop.run_app(&mut app).unwrap();
 }

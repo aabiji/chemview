@@ -43,14 +43,14 @@ impl DebugUI {
         self.state.on_window_event(window, event).consumed
     }
 
-    pub fn render<F: Fn(&egui::Context)>(
+    pub fn render<F: FnMut(&egui::Context)>(
         &mut self,
         device: &Device,
         window: &Window,
         queue: &Queue,
         encoder: &mut CommandEncoder,
         surface_texture_view: &TextureView,
-        callback: F,
+        callback: &mut F,
     ) {
         let raw_input = self.state.take_egui_input(&window);
 
