@@ -94,7 +94,7 @@ impl CameraController {
             prev_mouse: Vec2::new(0.0, 0.0),
             mouse_delta: Vec2::new(0.0, 0.0),
             sensitivity: 0.25,
-            speed: 2.5,
+            speed: 10.0,
         }
     }
 
@@ -108,6 +108,10 @@ impl CameraController {
             self.camera.view(),
             self.camera.rotation_matrix(),
         )
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.mouse_down || !self.actions.is_empty()
     }
 
     pub fn front(&self) -> Vec3 {

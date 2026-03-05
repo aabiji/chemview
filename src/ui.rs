@@ -32,6 +32,14 @@ impl DebugUI {
             },
         );
 
+        let mut style = egui::Style::default();
+        style.text_styles = [
+            (egui::TextStyle::Body, egui::FontId::proportional(15.0)),
+            (egui::TextStyle::Button, egui::FontId::proportional(15.0)),
+        ]
+        .into();
+        context.set_style(style);
+
         Self {
             context,
             state,

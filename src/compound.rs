@@ -83,8 +83,8 @@ pub fn parse_compound(contents: &str) -> Result<(String, String, Vec<Atom>, Vec<
     }
 
     let mut saw_iupac = false;
-    let mut name = String::new();
-    let mut formula = String::new();
+    let mut name = String::from("Unkown compound");
+    let mut formula = String::from("Unkonwn formula");
     for i in (5 + num_atoms + num_bonds)..lines.len() {
         match lines[i] {
             "> <PUBCHEM_MOLECULAR_FORMULA>" => formula = lines[i + 1].to_string(),

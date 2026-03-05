@@ -342,12 +342,13 @@ impl Renderer {
         self.queue.write_buffer(&self.buffers[4], 0, shapes_raw); // Shapes data
     }
 
-    fn render_shapes(&mut self, encoder: &mut CommandEncoder, surface_texture_view: &TextureView) {
-        let now = SystemTime::now();
-        let delta_time = now.duration_since(self.current_time).unwrap().as_millis();
-        self.current_time = now;
-
-        self.controller.update_camera(1.0 / delta_time as f32);
+    fn render_shapes(
+        &mut self,
+        encoder: &mut CommandEncoder,
+        surface_texture_view: &TextureView,
+        delta_time: f32,
+    ) {
+        self.controller.update_camera(1.0 / delta_time);
         self.update_shader_vars();
 
         {
@@ -393,7 +394,11 @@ impl Renderer {
         }
     }
 
-    pub fn render<F: FnMut(&egui::Context)>(&mut self, ui_callback: &mut F) {
+    pub fn render<F: FnMut(&egui::Context)>(&mut self, ui_callback: &mut F) -> f32 {
+        let now = SystemTime::now();
+        let delta_time = now.duration_since(self.current_time).unwrap().as_millis() as f32;
+        self.current_time = now;
+
         let surface_texture = self.surface.get_current_texture().unwrap();
         let surface_texture_view = surface_texture.texture.create_view(&TextureViewDescriptor {
             format: Some(self.surface_format.add_srgb_suffix()),
@@ -402,7 +407,7 @@ impl Renderer {
 
         let mut encoder = self.device.create_command_encoder(&Default::default());
 
-        self.render_shapes(&mut encoder, &surface_texture_view);
+        self.render_shapes(&mut encoder, &surface_texture_view, delta_time);
         self.ui.render(
             &self.device,
             &self.window,
@@ -415,5 +420,8 @@ impl Renderer {
         self.queue.submit([encoder.finish()]);
         self.window.pre_present_notify();
         surface_texture.present();
+
+        // fps: 1.0 / delta_time_in_secs
+        1.0 / (delta_time / 1000.0)
     }
 }

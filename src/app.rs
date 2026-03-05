@@ -17,47 +17,88 @@ enum ViewType {
     SpacingFilling,
 }
 
+impl ViewType {
+    fn to_string(&self) -> String {
+        match *self {
+            ViewType::BallAndStick => String::from("Ball and Stick"),
+            ViewType::SpacingFilling => String::from("Space filling"),
+        }
+    }
+}
+
 struct UIState {
     compound_formula: String,
     compound_name: String,
     file_path: String,
+    error_message: String,
+    handled_file_change: bool,
     view_type: ViewType,
-    wireframe_mode: bool,
     fps: f32,
 }
 
 impl UIState {
     fn render(&mut self, ctx: &egui::Context) {
-        egui::Window::new("Debug").show(ctx, |ui| {
-            ui.label(format!("FPS: {}", self.fps));
-
-            let response = ui.add(egui::TextEdit::singleline(&mut self.file_path));
-            if response.changed() {
-                // TODO: handle text change
-            }
-
-            ui.horizontal(|h_ui| {
-                h_ui.heading(&format!("{}", self.compound_name));
-                h_ui.heading(&format!("{}", self.compound_formula));
-            });
-
-            egui::ComboBox::from_label("Visualizer type")
-                .selected_text("Selected")
-                .show_ui(ui, |combo_ui| {
-                    combo_ui.selectable_value(
-                        &mut self.view_type,
-                        ViewType::BallAndStick,
-                        "Ball and stick",
-                    );
-                    combo_ui.selectable_value(
-                        &mut self.view_type,
-                        ViewType::SpacingFilling,
-                        "Space filling",
-                    );
+        egui::Window::new("Debug")
+            .default_size([250.0, 250.0])
+            .title_bar(false)
+            .movable(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.horizontal(|h_ui| {
+                    h_ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button(">").clicked() {
+                            self.handled_file_change = false;
+                        }
+                        ui.add_sized(
+                            ui.available_size(),
+                            egui::TextEdit::singleline(&mut self.file_path),
+                        );
+                    });
                 });
 
-            ui.checkbox(&mut self.wireframe_mode, "Wireframe mode");
-        });
+                if !self.error_message.is_empty() {
+                    ui.label(
+                        egui::RichText::new(format!("{}", self.error_message))
+                            .color(egui::Color32::LIGHT_RED),
+                    );
+                }
+
+                ui.horizontal(|h_ui| {
+                    h_ui.label(egui::RichText::new(format!("{}", self.compound_name)).strong());
+                    h_ui.add_space(45.0);
+                    h_ui.label(egui::RichText::new(format!("{}", self.compound_formula)).strong());
+                    h_ui.add_space(45.0);
+                    h_ui.label(egui::RichText::new(format!("FPS: {}", self.fps)).strong());
+                });
+
+                ui.horizontal(|h_ui| {
+                    h_ui.label("Visualizer type");
+                    egui::ComboBox::from_id_salt("cobo")
+                        .selected_text(self.view_type.to_string())
+                        .show_ui(h_ui, |combo_ui| {
+                            if combo_ui
+                                .selectable_value(
+                                    &mut self.view_type,
+                                    ViewType::BallAndStick,
+                                    ViewType::BallAndStick.to_string(),
+                                )
+                                .clicked()
+                            {
+                                self.handled_file_change = false;
+                            }
+                            if combo_ui
+                                .selectable_value(
+                                    &mut self.view_type,
+                                    ViewType::SpacingFilling,
+                                    ViewType::SpacingFilling.to_string(),
+                                )
+                                .clicked()
+                            {
+                                self.handled_file_change = false;
+                            }
+                        });
+                });
+            });
     }
 }
 
@@ -72,9 +113,10 @@ impl App {
             state: UIState {
                 compound_formula: String::new(),
                 compound_name: String::new(),
-                file_path: String::from("/home/aabiji/dev/chemview/data/dopamine.sdf"),
+                file_path: String::from(""),
+                error_message: String::new(),
                 view_type: ViewType::BallAndStick,
-                wireframe_mode: false,
+                handled_file_change: true,
                 fps: 0.0,
             },
             renderer: None,
@@ -101,6 +143,20 @@ impl App {
 
         Ok(())
     }
+
+    fn handle_new_compound(&mut self) {
+        if self.state.handled_file_change {
+            return;
+        }
+
+        let front = self.renderer.as_mut().unwrap().controller.front();
+        if let Err(err) = self.load_compound(front) {
+            self.state.error_message = err;
+        } else {
+            self.state.error_message = String::new();
+        }
+        self.state.handled_file_change = true;
+    }
 }
 
 impl ApplicationHandler for App {
@@ -117,9 +173,7 @@ impl ApplicationHandler for App {
         );
 
         let renderer = pollster::block_on(Renderer::new(window.clone()));
-        let front = renderer.controller.front();
         self.renderer = Some(renderer);
-        self.load_compound(front).unwrap();
         window.request_redraw();
     }
 
@@ -129,13 +183,20 @@ impl ApplicationHandler for App {
 
         let egui_consummed = renderer.ui.on_window_event(&renderer.window, &event);
         if egui_consummed {
+            renderer.get_window().request_redraw();
             return;
         }
 
         match event {
             WindowEvent::RedrawRequested => {
-                renderer.render(&mut callback);
-                renderer.get_window().request_redraw();
+                self.state.fps = renderer.render(&mut callback);
+
+                // Only update when needed
+                if renderer.controller.is_active() {
+                    renderer.get_window().request_redraw();
+                }
+
+                self.handle_new_compound();
             }
 
             WindowEvent::CloseRequested => event_loop.exit(),
