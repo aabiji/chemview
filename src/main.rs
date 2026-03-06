@@ -1,3 +1,4 @@
+/*
 use crate::app::App;
 use winit::event_loop::{ControlFlow, EventLoop};
 
@@ -17,4 +18,11 @@ fn main() {
 
     let mut app = App::default();
     event_loop.run_app(&mut app).unwrap();
+}
+*/
+
+mod parser;
+
+fn main() {
+    parser::parse();
 }
