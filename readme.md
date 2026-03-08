@@ -1,22 +1,11 @@
 High performance molecule visualizer built in Rust and wgpu
 
-### Design
-Visualization will be done through a series of transformations to eventually
-get meshes that can be instance rendererd.
-
-Simple compounds:
-
-1. Text -> Atoms and bonds
-   Parse an SDF file to get atomic information.
-
-2. Atoms and bonds -> Transformation matrices
-   Map the atoms and bonds to transformation matrices
-   applied to sphere and cylinder meshes. Those meshes can
-   then be instanced rendered.
-
-Proteins:
-1. Text -> ??
-    Parse an mmCIF file to get ??
+### Terminology
+*Residue*: A singe monomer in a polymer chain. Monomers are compose of many individual atoms.
+*Ligand*: Any non polymer molecule bound to the main structure. (HETATM)
+*Oligosaccharide*: Carbohydrate chain 3-10 monomers long.
+*Polysaccharide*: Carbohydrate chain 10+ monomers long.
+*Glycans*: Oligosaccharides or polysaccharides that form part of the glycocalix (dense carbohydrate coating on the exterior of the cell membrane) and help cells to identify themselves and interact with their environment.
 
 ### Ressources
 
@@ -27,16 +16,12 @@ Proteins:
 - [Atomic Radius in the Periodic Table of Elements](https://pubchem.ncbi.nlm.nih.gov/ptable/atomic-radius/)
 - [OpenGL Cylinder, Prism & Pipe](https://www.songho.ca/opengl/gl_cylinder.html)
 - [OpenGL Sphere](https://www.songho.ca/opengl/gl_sphere.html)
-- [Claude](https://claude.ai/), mainly used for drafting an initial implementation roadmap
+
+- [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
+- [Rendering techniques for proteins](https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2021.642172/full)
 
 - [PDB-101](https://pdb101.rcsb.org/)
 - [PDBx/mmCIF User Giude](https://mmcif.wwpdb.org/docs/user-guide/guide.html)
-
-- [BinaryCIF and CIFTools](https://escholarship.org/uc/item/4dr9r1m1)
-- [T44](https://www.rcsb.org/ligand/T44)
-- [DSM](https://www.rcsb.org/ligand/DSM)
-- [28vp](https://www.rcsb.org/structure/28VP)
-- [9PPX](https://www.rcsb.org/structure/9PPX)
 - [Structures of Human Sequences](https://www.rcsb.org/search?q=rcsb_entity_source_organism.ncbi_scientific_name:Homo%20sapiens)
 
 ### Roadmap
@@ -73,6 +58,11 @@ Part 1.5 -> Improve UX:
 - [x] Add a ui to manipulate the compound in focus
 - [ ] Loading should be done on a seperate thread. Updating the compound's view type should be
       done by creating shape buffers for all view types, then switching them out during runtime.
+- [ ] The ball and stick renderer should color the bonds based off of which atom is attached
+- [ ] The ball and stick renderer should not render spheres
+- [ ] The renderer should filter out H, since it clutters the view
+- [ ] Abstract out parsing and mesh generation into an interface called `StructurePipeline`
+      `fn load_data();`, `fn generate_mesh() -> Vec<Vertex>;`
 
 Part 2 -> Render proteins:
 - [ ] Parse mmCIF files
@@ -100,6 +90,8 @@ Part 2 -> Render proteins:
     - [ ] Use the alpha carbon atom from each residue to use as positions for control points.
           Explore using Catmull-Rom or cubix Hermite spline through the control points
     - [ ] Build the ribbon geometry using a Fresnet-Serret frame. Add arrow heads for beta strands
+    - [ ] Overlay the ball and stick Overton the ribbon rendering
+    - [ ] Render disulfide bridges
 
   - [ ] Surface model
       - ???
