@@ -21,8 +21,8 @@ fn main() {
 }
 */
 
-mod parser;
+mod mmcif;
 
 fn main() {
-    parser::parse();
+    mmcif::parse();
 }
