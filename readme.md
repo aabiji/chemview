@@ -7,6 +7,11 @@ High performance molecule visualizer built in Rust and wgpu
 *Polysaccharide*: Carbohydrate chain 10+ monomers long.
 *Glycans*: Oligosaccharides or polysaccharides that form part of the glycocalix (dense carbohydrate coating on the exterior of the cell membrane) and help cells to identify themselves and interact with their environment.
 
+### Open questions
+- If all you have are the atoms, how are you supposed to infer bonds? Can you even infer bonds?
+- What do we actually parse from the file to render the primary, secondary, tertiary and quaternary structure of the protein?
+- B-Trees are supposed to be good for range queries, so how do they work?
+
 ### Ressources
 
 - [Chemical table file](https://en.wikipedia.org/wiki/Chemical_table_file)
@@ -17,12 +22,13 @@ High performance molecule visualizer built in Rust and wgpu
 - [OpenGL Cylinder, Prism & Pipe](https://www.songho.ca/opengl/gl_cylinder.html)
 - [OpenGL Sphere](https://www.songho.ca/opengl/gl_sphere.html)
 
-- [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
-- [Rendering techniques for proteins](https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2021.642172/full)
-
 - [PDB-101](https://pdb101.rcsb.org/)
 - [PDBx/mmCIF User Giude](https://mmcif.wwpdb.org/docs/user-guide/guide.html)
 - [Structures of Human Sequences](https://www.rcsb.org/search?q=rcsb_entity_source_organism.ncbi_scientific_name:Homo%20sapiens)
+- [Rendering techniques for proteins](https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2021.642172/full)
+
+- [Protein secondary structures](https://chemistrytalk.org/protein-secondary-structures/)
+- [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
 
 ### Roadmap
 
@@ -56,24 +62,23 @@ Part 1 -> Small molecule viewer:
 Part 1.5 -> Improve UX:
 - [x] Fixed position camera, mouse rotates the compound itself, not the scene
 - [x] Add a ui to manipulate the compound in focus
-- [ ] Loading should be done on a seperate thread. Updating the compound's view type should be
-      done by creating shape buffers for all view types, then switching them out during runtime.
-- [ ] The ball and stick renderer should color the bonds based off of which atom is attached
-- [ ] The ball and stick renderer should not render spheres
-- [ ] The renderer should filter out H, since it clutters the view
-- [ ] Abstract out parsing and mesh generation into an interface called `StructurePipeline`
-      `fn load_data();`, `fn generate_mesh() -> Vec<Vertex>;`
 
 Part 2 -> Render proteins:
 - [ ] Parse mmCIF files
-  - [ ] mmap the file
-  - [ ] Get test data from the Protein Data Bank
-  - [ ] Answer questions:
-    - Are bonds explicit like in SDF, or inferrred?
-    - Are H atoms inferred?
-  - [ ] KD-trees for spatial queries???
+  - [ ] mmap the file and do the first pass: Parse key/value and tables into `Block`s
+  - [ ] Filter the blocks that are needed and parse the `_chem_comp_atom`, `_atom_site` and `_chem_bond` blocks to get atom and bond info
 
-- Render the protein
+  - [ ] Render those parse atoms and bonds
+    - [ ] Loading should be done on a seperate thread. Updating the compound's view type should be
+          done by creating shape buffers for all view types, then switching them out during runtime.
+    - [ ] The ball and stick renderer should color the bonds based off of which atom is attached
+    - [ ] The ball and stick renderer should not render spheres (or make the spheres much, much smaller)
+    - [ ] The renderer should filter out H, since it clutters the view
+
+  - [ ] Abstract away the file format used. Use an interface that loads the file, then the file to output a mesh,
+        use that mesh data (not tied to any semantic meaning) to do instance rendering
+
+- Render the protein in different ways
   - [ ] Wirefram diagram: draw a line for each of the covalent bonds formed between atoms
 
   - [ ] Space filling model
