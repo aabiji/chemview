@@ -65,7 +65,7 @@ Part 1.5 -> Improve UX:
 
 Part 2 -> Render proteins:
 - [ ] Parse mmCIF files
-  - [ ] mmap the file and do the first pass: Parse key/value and tables into `Block`s
+  - [x] mmap the file and do the first pass: Parse key/value and tables into `Block`s
   - [ ] Filter the blocks that are needed and parse the `_chem_comp_atom`, `_atom_site` and `_chem_bond` blocks to get atom and bond info
 
   - [ ] Render those parse atoms and bonds
