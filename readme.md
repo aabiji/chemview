@@ -1,16 +1,107 @@
 High performance molecule visualizer built in Rust and wgpu
 
-### Terminology
-*Residue*: A singe monomer in a polymer chain. Monomers are compose of many individual atoms.
+### Notes
+*Residue*: Different name for an amino acid.
+
 *Ligand*: Any non polymer molecule bound to the main structure. (HETATM)
+
 *Oligosaccharide*: Carbohydrate chain 3-10 monomers long.
+
 *Polysaccharide*: Carbohydrate chain 10+ monomers long.
+
 *Glycans*: Oligosaccharides or polysaccharides that form part of the glycocalix (dense carbohydrate coating on the exterior of the cell membrane) and help cells to identify themselves and interact with their environment.
 
-### Open questions
-- If all you have are the atoms, how are you supposed to infer bonds? Can you even infer bonds?
-- What do we actually parse from the file to render the primary, secondary, tertiary and quaternary structure of the protein?
-- B-Trees are supposed to be good for range queries, so how do they work?
+*Protein structures*
+- Primary:
+  - Amino acids linked together by peptide bonds (C-N bond -> the N-terminus side with the C-terminus side).
+  - The peptide bond has two resonance structures, making there be
+    ![no free rotation](https://chem.libretexts.org/@api/deki/files/431969/clipboard_e91b1f279848763bb8eb3efbaa73339d7.png?revision=1)
+    around the peptide bond.
+  - Cysteine has `HS` for its `R` group, and when oxygenated, those R group can form disulfide bonds (S-S).
+  - Amino acids are read from the N terminus side to the C terminus side.
+
+- Secondary
+  - Helixes:
+    - Alpha helix: The amino acids in the chain are already oriented in 3D space such that C=O in
+      the *i*th amino acid points directly towards N-H of the *i + 4*th amino acid. So, an H bond can form,
+      giving the structure stability. The H bond strengthened a connection that's already implied by the chain's geometry.
+      The `R` groups branch off of the main backbone chain.
+    - 3-10 helix: An H bond forms between the carboxyl O of the *i*th amino acid and the amine N *i + 3*th amino acid
+    - Pi helix: An H bond forms between the carboxyl O of the *i*th amino acid and the amine N *i + 5*th amino acid
+    - H bonds are **intrastrand**. Rendered as coils.
+    - *Triple helix*: A set of 3 identical helices with the axis, differing only by a translation on that axis.
+      Seen in collagen for example.
+
+  - Beta sheet: The amino acid chain is pulled nearly straight, and the up/down zig-zag pattern
+    (aligned parallel (N terminus on the same side) or antiparallel (N terminus on opposite sides))
+    comes from the tetrahedral shape at each alpha carbon. H bonds are **interstrand**, from the
+    carboxyl O in the amino acid of one sheet, to the amine N in the amino acid of
+    another sheet. Rendered as a flat ribbon with an arrowhead pointed towards the N-terminus.
+
+  - *Random coils*: Organized but not repeating amino acid structures between alpha helixes and beta sheets.
+    Represented using ![lines](https://upload.wikimedia.org/wikipedia/commons/3/30/Insulin_1AI0_animation.gif).
+
+- Tiertiary
+  - The different interactions that hold a ![polypeptide chain stable](https://chem.libretexts.org/@api/deki/files/432385/clipboard_eb73f08683beb5308f9ebeb05bc9bd823.png?revision=1)
+    in 3D space include disulfide bonds, salt bridge, coordinate (covalent) bonds, hydrogen bonding, hydrophobic interactions, etc.
+
+- Quaternary
+  - A collection of polypeptide chains (not covalently bonded to each other) held together by the tertiary interactions described above.
+
+---
+
+- Entity -> Chains -> Residue -> Atom:
+  `_entity.id`                                -> `_struct_asym.entity_id`               : map an entity to its chains
+  `_struct_asym.id`                           -> `_atom_site.label_asym_id`             : map a chain to its atoms
+  `_entity_poly_seq.num`                      -> `_atom_site.label_seq_id`              : map a residue to its atoms
+  `_struct_conf.beg_label_asym_id`            -> `_struct_asym.id`                      : map the start of a helix to a chain
+  `_struct_conf.beg_label_seq_id`             -> `_entity_poly_seq.num`                 : map the start of a helix to a squence
+  `_struct_sheet_range.beg_label_asym_id`     -> `_struct_asym.id`                      : map the start of a beta sheet to a chain
+  `_struct_sheet_range.beg_label_seq_id`      -> `_entity_poly_seq.num`                 : map the start of a beta sheet to a squence
+  `_pdbx_struct_assembly.id`                  -> `_pdbx_struct_assembly_gen.assembly_id`: map an assembly to the generator operations list
+  `_pdbx_struct_assembly_gen.asym_id_list`    -> `_struct_asym.id`                      : map the assembly operation to the chains to transform
+  `_pdbx_struct_assembly_gen.oper_expression` -> `_pdbx_struct_oper_list.id`            : map the assembly operation to the actual transformation matrices
+
+  `_atom_site`: (label_entity_id, label_asym_id, label_seq_id)
+
+- Parse `_entity` to get entities
+
+```
+Residue {
+  atoms: Vec<Atom>
+}
+
+Chain {
+  residues: HashMap<String, Residue>  // residue id to residue
+}
+
+Entity {
+  chains: HashMap<String, Chain>,    // chain id to chain
+}
+
+let entities: Hashmap<String, Entity> = HashMap::new(); // entity id to entity
+```
+
+- Parse `_struct_asym` to get chains
+
+`entities[struct_asym_row['entity_id']].chains.insert(struct_asym_row['id'], Chain::new())`
+
+**THE NEXT TWO IDEAS HAVE AN ISSUE: THERE'S NO MAPPING BETWEEN CHAIN ID AND RESIDUE :()**
+
+- Parse `_entity_poly_seq` to get residues
+
+```
+let residue = Residue{ id: entity_poly_row['mon_id'], atoms: Vec::new() }
+entities[entity_poly_row['entity_id']].residues.insert(entity_poly_row['num'], residue)
+```
+
+- Parse `_atom_site` to get atoms
+```
+let atom = Atom::new()
+entities[atom_site_row['label_entity_id']].residues[atom_site_row['label_seq_id']].atoms(atom)
+```
+
+---
 
 ### Ressources
 
@@ -21,14 +112,13 @@ High performance molecule visualizer built in Rust and wgpu
 - [Atomic Radius in the Periodic Table of Elements](https://pubchem.ncbi.nlm.nih.gov/ptable/atomic-radius/)
 - [OpenGL Cylinder, Prism & Pipe](https://www.songho.ca/opengl/gl_cylinder.html)
 - [OpenGL Sphere](https://www.songho.ca/opengl/gl_sphere.html)
+- [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
+- [Secondary Structure and Loops](https://bio.libretexts.org/Bookshelves/Biochemistry/Fundamentals_of_Biochemistry_(Jakubowski_and_Flatt)/01%3A_Unit_I-_Structure_and_Catalysis/04%3A_The_Three-Dimensional_Structure_of_Proteins/4.02%3A_Secondary_Structure_and_Loops)
 
 - [PDB-101](https://pdb101.rcsb.org/)
 - [PDBx/mmCIF User Giude](https://mmcif.wwpdb.org/docs/user-guide/guide.html)
 - [Structures of Human Sequences](https://www.rcsb.org/search?q=rcsb_entity_source_organism.ncbi_scientific_name:Homo%20sapiens)
 - [Rendering techniques for proteins](https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2021.642172/full)
-
-- [Protein secondary structures](https://chemistrytalk.org/protein-secondary-structures/)
-- [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
 
 ### Roadmap
 
@@ -65,8 +155,7 @@ Part 1.5 -> Improve UX:
 
 Part 2 -> Render proteins:
 - [ ] Parse mmCIF files
-  - [x] mmap the file and do the first pass: Parse key/value and tables into `Block`s
-  - [ ] Filter the blocks that are needed and parse the `_chem_comp_atom`, `_atom_site` and `_chem_bond` blocks to get atom and bond info
+  - [ ] mmap the file and parse the mmCIF file into structured data types
 
   - [ ] Render those parse atoms and bonds
     - [ ] Loading should be done on a seperate thread. Updating the compound's view type should be
@@ -80,6 +169,7 @@ Part 2 -> Render proteins:
 
 - Render the protein in different ways
   - [ ] Wirefram diagram: draw a line for each of the covalent bonds formed between atoms
+      - Add dotted lines for hydrogen bonds and disulfide bonds
 
   - [ ] Space filling model
     - [ ] The protein will have several orders of magnitude more atoms than
