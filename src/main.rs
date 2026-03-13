@@ -22,7 +22,11 @@ fn main() {
 */
 
 mod mmcif;
+use std::path::PathBuf;
 
 fn main() {
-    mmcif::parse();
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("data/mmcif/T44.cif");
+    let structure = mmcif::Structure::new(&path).unwrap();
+    println!("{:#?}", structure)
 }
