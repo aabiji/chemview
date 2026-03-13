@@ -61,45 +61,7 @@ High performance molecule visualizer built in Rust and wgpu
   `_pdbx_struct_assembly.id`                  -> `_pdbx_struct_assembly_gen.assembly_id`: map an assembly to the generator operations list
   `_pdbx_struct_assembly_gen.asym_id_list`    -> `_struct_asym.id`                      : map the assembly operation to the chains to transform
   `_pdbx_struct_assembly_gen.oper_expression` -> `_pdbx_struct_oper_list.id`            : map the assembly operation to the actual transformation matrices
-
   `_atom_site`: (label_entity_id, label_asym_id, label_seq_id)
-
-- Parse `_entity` to get entities
-
-```
-Residue {
-  atoms: Vec<Atom>
-}
-
-Chain {
-  residues: HashMap<String, Residue>  // residue id to residue
-}
-
-Entity {
-  chains: HashMap<String, Chain>,    // chain id to chain
-}
-
-let entities: Hashmap<String, Entity> = HashMap::new(); // entity id to entity
-```
-
-- Parse `_struct_asym` to get chains
-
-`entities[struct_asym_row['entity_id']].chains.insert(struct_asym_row['id'], Chain::new())`
-
-**THE NEXT TWO IDEAS HAVE AN ISSUE: THERE'S NO MAPPING BETWEEN CHAIN ID AND RESIDUE :()**
-
-- Parse `_entity_poly_seq` to get residues
-
-```
-let residue = Residue{ id: entity_poly_row['mon_id'], atoms: Vec::new() }
-entities[entity_poly_row['entity_id']].residues.insert(entity_poly_row['num'], residue)
-```
-
-- Parse `_atom_site` to get atoms
-```
-let atom = Atom::new()
-entities[atom_site_row['label_entity_id']].residues[atom_site_row['label_seq_id']].atoms(atom)
-```
 
 ---
 
