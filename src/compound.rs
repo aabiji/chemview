@@ -122,8 +122,8 @@ impl CompoundMesh {
         Self {
             num_spheres: num_spheres as u32,
             shapes: vec![default_sphere; num_spheres],
-            bounding_min: Vec3::new(1000000.0, 1000000.0, 1000000.0),
-            bounding_max: Vec3::new(-1000000.0, -1000000.0, -1000000.0),
+            bounding_min: Vec3::ZERO,
+            bounding_max: Vec3::ZERO,
         }
     }
 }

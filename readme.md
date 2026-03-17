@@ -1,5 +1,14 @@
 High performance molecule visualizer built in Rust and wgpu
 
+### Questions
+- Can I profile my mmCIF parser and optimize it to eventually parse a 400 MB file in a few miliseconds?
+
+- How can I generate a 3d mesh of a spline for ribbon rendering?
+
+- How will bond inference work?
+  If I'm to look up bonds from a dataset, how will I be accessing it in a memory efficient way?
+  Should I load the entire 400 MB dataset and mmap that, or download a set of smaller files for each used residue?
+
 ### Notes
 *Residue*: Different name for an amino acid.
 
@@ -77,6 +86,7 @@ High performance molecule visualizer built in Rust and wgpu
 - [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
 - [Secondary Structure and Loops](https://bio.libretexts.org/Bookshelves/Biochemistry/Fundamentals_of_Biochemistry_(Jakubowski_and_Flatt)/01%3A_Unit_I-_Structure_and_Catalysis/04%3A_The_Three-Dimensional_Structure_of_Proteins/4.02%3A_Secondary_Structure_and_Loops)
 
+- [The Macromolecular Crystallographic Information File (mmCIF)](https://www.researchgate.net/publication/2777797_The_Macromolecular_Crystallographic_Information_File_mmCIF)
 - [PDB-101](https://pdb101.rcsb.org/)
 - [PDBx/mmCIF User Giude](https://mmcif.wwpdb.org/docs/user-guide/guide.html)
 - [Structures of Human Sequences](https://www.rcsb.org/search?q=rcsb_entity_source_organism.ncbi_scientific_name:Homo%20sapiens)
@@ -117,9 +127,13 @@ Part 1.5 -> Improve UX:
 
 Part 2 -> Render proteins:
 - [ ] Parse mmCIF files
-  - [ ] mmap the file and parse the mmCIF file into structured data types
+  - [x] Basic mmCIF file parsing into structured types
+  - [ ] mmap the file and parse by streaming the content
+  - [ ] Organize the data into Chains and Residues
+  - [ ] Perform bond inference to establish bonds between every single atom in the chain
+  - [ ] Only support BinaryCIF??
 
-  - [ ] Render those parse atoms and bonds
+  - [ ] Render those parsed atoms and bonds
     - [ ] Loading should be done on a seperate thread. Updating the compound's view type should be
           done by creating shape buffers for all view types, then switching them out during runtime.
     - [ ] The ball and stick renderer should color the bonds based off of which atom is attached

@@ -1,4 +1,5 @@
 use glam::Vec3;
+use std::path::PathBuf;
 use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
