@@ -81,6 +81,59 @@ pub fn to_raw(shape: &Shape) -> InstanceData {
     }
 }
 
+pub struct CompoundMeshInfo {
+    pub shapes: Vec<Shape>,
+    pub num_spheres: u32,
+    pub bounding_min: Vec3,
+    pub bounding_max: Vec3,
+}
+
+impl CompoundMeshInfo {
+    pub fn default(num_spheres: usize) -> Self {
+        let default_sphere = Shape::Sphere {
+            origin: Vec3::ZERO,
+            color: Vec3::ZERO,
+            radius: 0.0,
+        };
+
+        Self {
+            num_spheres: num_spheres as u32,
+            shapes: vec![default_sphere; num_spheres],
+            bounding_min: Vec3::ZERO,
+            bounding_max: Vec3::ZERO,
+        }
+    }
+
+    pub fn update_bounds(&mut self, bounds: (Vec3, Vec3)) {
+        self.bounding_min = self.bounding_min.min(bounds.0);
+        self.bounding_max = self.bounding_max.max(bounds.1);
+    }
+
+    pub fn add_bond(
+        &mut self,
+        start_pos: Vec3,
+        end_pos: Vec3,
+        camera_front: Vec3,
+        multiplicity: usize,
+    ) {
+        let bond_direction = (end_pos - start_pos).normalize();
+        let view_right = bond_direction.cross(camera_front).normalize();
+
+        let spacing = 0.2;
+        let spread = (multiplicity - 1) as f32 * spacing;
+
+        for i in 0..multiplicity {
+            let offset = view_right * (i as f32 * spacing - spread / 2.0);
+            self.shapes.push(Shape::Cylinder {
+                start: start_pos + offset,
+                end: end_pos + offset,
+                color: Vec3::new(0.67, 0.67, 0.67),
+                radius: 0.045,
+            });
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Default, Pod, Zeroable, Copy)]
 pub struct Vertex {

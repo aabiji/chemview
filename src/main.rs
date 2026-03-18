@@ -3,9 +3,10 @@
 
 mod app;
 mod camera;
-mod compound;
 mod mmcif;
+mod pipeline;
 mod renderer;
+mod sdf;
 mod shader;
 mod shape;
 mod ui;

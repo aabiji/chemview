@@ -1,13 +1,4 @@
-High performance molecule visualizer built in Rust and wgpu
-
-### Questions
-- Can I profile my mmCIF parser and optimize it to eventually parse a 400 MB file in a few miliseconds?
-
-- How can I generate a 3d mesh of a spline for ribbon rendering?
-
-- How will bond inference work?
-  If I'm to look up bonds from a dataset, how will I be accessing it in a memory efficient way?
-  Should I load the entire 400 MB dataset and mmap that, or download a set of smaller files for each used residue?
+Molecule visualizer built in Rust and wgpu
 
 ### Notes
 *Residue*: Different name for an amino acid.
@@ -23,8 +14,8 @@ High performance molecule visualizer built in Rust and wgpu
 *Protein structures*
 - Primary:
   - Amino acids linked together by peptide bonds (C-N bond -> the N-terminus side with the C-terminus side).
-  - The peptide bond has two resonance structures, making there be
-    ![no free rotation](https://chem.libretexts.org/@api/deki/files/431969/clipboard_e91b1f279848763bb8eb3efbaa73339d7.png?revision=1)
+  - The peptide bond has two resonance structures, making there be no free rotation
+    ![](https://chem.libretexts.org/@api/deki/files/431969/clipboard_e91b1f279848763bb8eb3efbaa73339d7.png?revision=1)
     around the peptide bond.
   - Cysteine has `HS` for its `R` group, and when oxygenated, those R group can form disulfide bonds (S-S).
   - Amino acids are read from the N terminus side to the C terminus side.
@@ -48,7 +39,7 @@ High performance molecule visualizer built in Rust and wgpu
     another sheet. Rendered as a flat ribbon with an arrowhead pointed towards the N-terminus.
 
   - *Random coils*: Organized but not repeating amino acid structures between alpha helixes and beta sheets.
-    Represented using ![lines](https://upload.wikimedia.org/wikipedia/commons/3/30/Insulin_1AI0_animation.gif).
+    Represented using lines ![](https://upload.wikimedia.org/wikipedia/commons/3/30/Insulin_1AI0_animation.gif).
 
 - Tiertiary
   - The different interactions that hold a ![polypeptide chain stable](https://chem.libretexts.org/@api/deki/files/432385/clipboard_eb73f08683beb5308f9ebeb05bc9bd823.png?revision=1)
@@ -57,9 +48,8 @@ High performance molecule visualizer built in Rust and wgpu
 - Quaternary
   - A collection of polypeptide chains (not covalently bonded to each other) held together by the tertiary interactions described above.
 
----
-
 - Entity -> Chains -> Residue -> Atom:
+```
   `_entity.id`                                -> `_struct_asym.entity_id`               : map an entity to its chains
   `_struct_asym.id`                           -> `_atom_site.label_asym_id`             : map a chain to its atoms
   `_entity_poly_seq.num`                      -> `_atom_site.label_seq_id`              : map a residue to its atoms
@@ -71,6 +61,7 @@ High performance molecule visualizer built in Rust and wgpu
   `_pdbx_struct_assembly_gen.asym_id_list`    -> `_struct_asym.id`                      : map the assembly operation to the chains to transform
   `_pdbx_struct_assembly_gen.oper_expression` -> `_pdbx_struct_oper_list.id`            : map the assembly operation to the actual transformation matrices
   `_atom_site`: (label_entity_id, label_asym_id, label_seq_id)
+```
 
 ---
 
@@ -128,10 +119,9 @@ Part 1.5 -> Improve UX:
 Part 2 -> Render proteins:
 - [ ] Parse mmCIF files
   - [x] Basic mmCIF file parsing into structured types
-  - [ ] mmap the file and parse by streaming the content
+  - [x] mmap the file and parse by streaming the content
   - [ ] Organize the data into Chains and Residues
   - [ ] Perform bond inference to establish bonds between every single atom in the chain
-  - [ ] Only support BinaryCIF??
 
   - [ ] Render those parsed atoms and bonds
     - [ ] Loading should be done on a seperate thread. Updating the compound's view type should be

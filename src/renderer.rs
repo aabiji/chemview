@@ -20,7 +20,7 @@ use winit::{dpi::PhysicalSize, window::Window};
 use crate::shader::ShaderVar;
 use crate::shape::{InstanceData, Vertex};
 use crate::ui::DebugUI;
-use crate::{camera::CameraController, compound::CompoundMesh};
+use crate::{camera::CameraController, shape::CompoundMeshInfo};
 use crate::{shader, shape};
 
 // The maximum size in bytes of a storage buffer will be 10 MB
@@ -318,7 +318,7 @@ impl Renderer {
             .write_buffer(&self.buffers[3], 0, bytemuck::cast_slice(&position));
     }
 
-    pub fn set_mesh_data(&mut self, mesh: &CompoundMesh) {
+    pub fn set_mesh_data(&mut self, mesh: &CompoundMeshInfo) {
         let target_pos = Vec3::new(0.0, 0.0, 0.0);
         let size = mesh.bounding_max - mesh.bounding_min;
         let offset = (mesh.bounding_min + size / 2.0) - target_pos;

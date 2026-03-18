@@ -1,3 +1,4 @@
+use glam::Vec3;
 use memchr::memchr;
 use memchr::memmem::find_iter;
 use memmap::{Mmap, MmapOptions};
@@ -5,20 +6,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::path::PathBuf;
 
-/*
-TODO:
-- Switch to parsing binary CIF
-
-- Change the approach:
-  Then optionally filter and group the blocks into, structure like so: Chain -> Vec<residue> -> Vec<Atom>
-
-  Hopefully there aren't too many atoms in the residue, so during bond resolution, a simple lookup for `atom_id` will suffice
-
-  For bond resolution, load the CCD mmcif file as described above, and selectively parse data
-  blocks like `data_SEQ` (ex: `data_VAL`) to get bonding info for a residue
-
-  Memoize those bond info so that the cost of parsing is amortized over the number of residues
-*/
+use crate::pipeline::CompoundPipeline;
+use crate::shape::CompoundMeshInfo;
 
 #[derive(Debug)]
 enum Token {
@@ -61,14 +50,14 @@ type Table = BTreeMap<String, Vec<Token>>;
 
 #[derive(Debug)]
 pub struct DataBlock {
+    pub tables: HashMap<String, Table>,
     start_offset: usize,
     end_offset: usize,
-    tables: HashMap<String, Table>,
 }
 
 #[derive(Debug)]
 pub struct Parser {
-    data_blocks: HashMap<String, DataBlock>,
+    pub data_blocks: HashMap<String, DataBlock>,
     mmap: Mmap,
 }
 
@@ -235,8 +224,23 @@ impl Parser {
             }
         }
 
-        println!("{:?}", self.data_blocks);
-
         Ok(())
+    }
+}
+
+struct MMCIFLoader {
+    parser: Parser,
+}
+
+impl CompoundPipeline for MMCIFLoader {
+    fn init() -> Result<Self, String> {
+        Ok(())
+    }
+
+    fn parse_file(&mut self, path: &PathBuf) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn compute_mesh_info(&mut self, camera_front: Vec3, use_waal_radius: bool) -> CompoundMeshInfo {
     }
 }
