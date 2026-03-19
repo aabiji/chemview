@@ -8,7 +8,6 @@ pub struct UIState {
     pub file_path: String,
     pub path_changed: bool,
     pub error_message: Option<String>,
-    pub compound_description: String,
     pub view_type: ViewType,
     pub view_changed: bool,
     pub fps: f32,
@@ -66,11 +65,13 @@ impl DebugUI {
 
     fn layout(&self, state: &mut UIState, ctx: &egui::Context) {
         egui::Window::new("Debug")
-            .default_size([250.0, 250.0])
+            .fixed_size([400.0, 250.0])
             .title_bar(false)
             .movable(false)
             .resizable(false)
             .show(ctx, |ui| {
+                ui.label(egui::RichText::new(format!("FPS: {}", state.fps)).strong());
+
                 ui.horizontal(|h_ui| {
                     h_ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button(">").clicked() {
@@ -88,13 +89,7 @@ impl DebugUI {
                 }
 
                 ui.horizontal(|h_ui| {
-                    h_ui.label(egui::RichText::new(&state.compound_description).strong());
-                    h_ui.add_space(45.0);
-                    h_ui.label(egui::RichText::new(format!("FPS: {}", state.fps)).strong());
-                });
-
-                ui.horizontal(|h_ui| {
-                    h_ui.label("Visualizer type");
+                    h_ui.label("View type");
                     egui::ComboBox::from_id_salt("combo")
                         .selected_text(state.view_type.to_string())
                         .show_ui(h_ui, |combo_ui| {

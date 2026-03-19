@@ -48,7 +48,7 @@ Molecule visualizer built in Rust and wgpu
 - Quaternary
   - A collection of polypeptide chains (not covalently bonded to each other) held together by the tertiary interactions described above.
 
-- Entity -> Chains -> Residue -> Atom:
+- ![](https://cdn.ncbi.nlm.nih.gov/pmc/blobs/8d18/7203745/a81d112126a1/btaa072f1.jpg)
 ```
   `_entity.id`                                -> `_struct_asym.entity_id`               : map an entity to its chains
   `_struct_asym.id`                           -> `_atom_site.label_asym_id`             : map a chain to its atoms
@@ -120,7 +120,7 @@ Part 2 -> Render proteins:
 - [ ] Parse mmCIF files
   - [x] Basic mmCIF file parsing into structured types
   - [x] mmap the file and parse by streaming the content
-  - [ ] Organize the data into Chains and Residues
+  - [x] Organize the data into Chains and Residues
   - [ ] Perform bond inference to establish bonds between every single atom in the chain
 
   - [ ] Render those parsed atoms and bonds

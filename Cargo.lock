@@ -362,6 +362,7 @@ dependencies = [
  "egui-winit",
  "env_logger",
  "glam",
+ "indexmap",
  "memchr",
  "memmap",
  "pollster",

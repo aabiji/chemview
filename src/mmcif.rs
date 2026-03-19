@@ -1,16 +1,17 @@
 use glam::Vec3;
+use indexmap::IndexMap;
 use memchr::memchr;
 use memchr::memmem::find_iter;
 use memmap::{Mmap, MmapOptions};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 
 use crate::mesh::CompoundMeshInfo;
 use crate::pipeline::{CompoundPipeline, ViewType};
 
-#[derive(Debug)]
-enum Token {
+#[derive(Debug, Clone)]
+pub enum Token {
     TableStart,
     Label((String, String)), // block name, attribute name
     Value(String),
@@ -46,18 +47,20 @@ impl Token {
     }
 }
 
-type Table = BTreeMap<String, Vec<Token>>;
+#[derive(Default, Debug)]
+struct Table {
+    columns: IndexMap<String, Vec<Token>>,
+    num_rows: usize,
+}
 
-#[derive(Debug)]
-pub struct DataBlock {
-    pub tables: HashMap<String, Table>,
+struct DataBlock {
+    tables: HashMap<String, Table>,
     start_offset: usize,
     end_offset: usize,
 }
 
-#[derive(Debug)]
 pub struct Parser {
-    pub data_blocks: HashMap<String, DataBlock>,
+    data_blocks: HashMap<String, DataBlock>,
     mmap: Option<Mmap>,
 }
 
@@ -163,12 +166,22 @@ impl Parser {
         Token::Eof
     }
 
-    pub fn parse_block(&mut self, name: &str) -> Result<(), String> {
+    pub fn parse_block(&mut self, name: Option<&str>) -> Result<(), String> {
+        let key = match name {
+            Some(s) => s,
+            // Parse the first data block by default
+            None => &self
+                .data_blocks
+                .keys()
+                .next()
+                .ok_or("No data blocks found")?
+                .clone(),
+        };
+
         let block = self
             .data_blocks
-            .get_mut(name)
-            .ok_or_else(|| format!("{} not found", name))
-            .unwrap();
+            .get_mut(key)
+            .ok_or_else(|| format!("{} not found", key))?;
         let (mut i, end) = (block.start_offset, block.end_offset);
 
         let mut in_table = false;
@@ -188,35 +201,38 @@ impl Parser {
                         .tables
                         .entry(block_name)
                         .or_default()
+                        .columns
                         .insert(column, Vec::new());
                 }
                 Token::Value(_) => {
                     // Dictionary value
                     if !in_table {
-                        block
-                            .tables
-                            .entry(prev_block.clone())
-                            .or_default()
-                            .get_mut(&prev_column)
-                            .unwrap()
-                            .push(token);
+                        let table = block.tables.entry(prev_block.clone()).or_default();
+                        table.columns.get_mut(&prev_column).unwrap().push(token);
+                        table.num_rows += 1;
                         continue;
                     }
 
                     // Table row
-                    // Remeber that this works because keys are sorted by their insertion order
-                    let keys: Vec<String> = block.tables[&prev_block].keys().cloned().collect();
-                    for key in keys {
-                        block
-                            .tables
-                            .get_mut(&prev_block.clone())
-                            .unwrap()
-                            .entry(key)
+                    // Remember that this works because keys are sorted by their insertion order
+                    let table = block.tables.entry(prev_block.clone()).or_default();
+                    let keys: Vec<String> = table.columns.keys().cloned().collect();
+                    table.num_rows += 1;
+
+                    for key_idx in 0..keys.len() {
+                        let t = if key_idx == 0 {
+                            token.clone()
+                        } else {
+                            Self::next_token(&mut i, &bytes, false)
+                        };
+                        table
+                            .columns
+                            .entry(keys[key_idx].clone())
                             .or_default()
-                            .push(Self::next_token(&mut i, &bytes, false));
+                            .push(t);
                     }
 
-                    // Last row?
+                    // Is last row?
                     let next_is_value =
                         matches!(Self::next_token(&mut i, &bytes, true), Token::Value(_));
                     if in_table && !next_is_value {
@@ -228,30 +244,109 @@ impl Parser {
 
         Ok(())
     }
+
+    fn get_table(&self, block_id: Option<&str>, table_id: &str) -> Result<&Table, String> {
+        let key = match block_id {
+            // In most files, there will only be one datablock,
+            // so it can be used as the default datablock
+            None => self
+                .data_blocks
+                .keys()
+                .next()
+                .ok_or(String::from("File contains no blocks"))?,
+            Some(b_id) => b_id,
+        };
+
+        self.data_blocks[key]
+            .tables
+            .get(table_id)
+            .ok_or(format!("{table_id} not found in {key}"))
+    }
+}
+
+#[derive(Debug)]
+struct Bond {
+    src_id: String,
+    dst_id: String,
+    multiplicity: usize,
+}
+
+#[derive(Debug)]
+struct Atom {
+    atom_id: String,
+    element: String,
+    position: Vec3,
+}
+
+struct Chain {
+    residues: HashMap<String, Vec<Atom>>, // Sequence id to residue atoms
+}
+
+#[derive(Default, Debug)]
+struct Ligand {
+    atoms: Vec<Atom>,
+    bonds: Vec<Bond>,
 }
 
 pub struct MMCIFLoader {
     parser: Parser,
+    chains: HashMap<String, Chain>,   // Chain ID to chain
+    ligands: HashMap<String, Ligand>, // Ligand ID to ligand
 }
 
 impl MMCIFLoader {
     pub fn init() -> Result<Self, String> {
-        // TODO: parse the CCD here
+        // TODO: load the CCD here
         Ok(Self {
             parser: Parser::default(),
+            chains: HashMap::new(),
+            ligands: HashMap::new(),
         })
     }
 }
 
 impl CompoundPipeline for MMCIFLoader {
     fn parse_file(&mut self, path: &Path) -> Result<(), String> {
-        //let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        //path.push("data");
-        //path.push("mmcif");
-        //path.push(filename);
-
         self.parser = Parser::new(path)?;
-        // TODO: parse data blocks here!
+
+        self.parser.parse_block(None)?;
+        let t1 = self.parser.get_table(None, "chem_comp_bond")?;
+        let t2 = self.parser.get_table(None, "chem_comp_atom")?;
+
+        for i in 0..t1.num_rows {
+            let id = t1.columns["comp_id"][i].string()?;
+            let ligand = self.ligands.entry(id).or_default();
+
+            ligand.bonds.push(Bond {
+                src_id: t1.columns["atom_id_1"][i].string()?,
+                dst_id: t1.columns["atom_id_2"][i].string()?,
+                multiplicity: match t1.columns["value_order"][i].string()?.as_str() {
+                    "DOUB" => 2,
+                    "TRIP" => 3,
+                    "SING" => 1,
+                    value => return Err(format!("Unimplemented bond type {value}")),
+                },
+            });
+        }
+
+        for i in 0..t2.num_rows {
+            let id = t2.columns["comp_id"][i].string()?;
+            let ligand = self.ligands.entry(id).or_default();
+
+            ligand.atoms.push(Atom {
+                // TODO: what about pdbx_component_atom_id
+                atom_id: t2.columns["atom_id"][i].string()?,
+                // TODO: what about pdbx_component_comp_id
+                element: t2.columns["type_symbol"][i].string()?,
+                position: glam::Vec3::new(
+                    t2.columns["pdbx_model_Cartn_x_ideal"][i].f32()?,
+                    t2.columns["pdbx_model_Cartn_y_ideal"][i].f32()?,
+                    t2.columns["pdbx_model_Cartn_z_ideal"][i].f32()?,
+                ),
+            });
+        }
+
+        dbg!(&self.ligands);
 
         Ok(())
     }

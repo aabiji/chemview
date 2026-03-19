@@ -26,10 +26,9 @@ impl App {
     pub fn default() -> Self {
         Self {
             ui_state: UIState {
-                file_path: String::from(""),
+                file_path: String::from("/home/aabiji/dev/chemview/data/mmcif/T44.cif"),
                 path_changed: false,
                 error_message: None,
-                compound_description: String::new(),
                 view_type: ViewType::BallAndStick,
                 view_changed: false,
                 fps: 0.0,
