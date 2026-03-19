@@ -17,11 +17,12 @@ use wgpu::{
 };
 use winit::{dpi::PhysicalSize, window::Window};
 
+use crate::mesh::{InstanceData, Vertex};
 use crate::shader::ShaderVar;
-use crate::shape::{InstanceData, Vertex};
 use crate::ui::DebugUI;
-use crate::{camera::CameraController, shape::CompoundMeshInfo};
-use crate::{shader, shape};
+use crate::ui::UIState;
+use crate::{camera::CameraController, mesh::CompoundMeshInfo};
+use crate::{mesh, shader};
 
 // The maximum size in bytes of a storage buffer will be 10 MB
 const STORAGE_BUFFE_SIZE: usize = 10 * 1024 * 1024;
@@ -80,7 +81,7 @@ impl Renderer {
         });
 
         let (vertices, indices, sphere_index_range, cylinder_index_range) =
-            shape::create_shape_mesh_buffers(32, 32, 1.0, 1.0);
+            mesh::create_shape_mesh_buffers(32, 32, 1.0, 1.0);
 
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex buffer"),
@@ -333,7 +334,7 @@ impl Renderer {
             .map(|s| {
                 let mut copy = s.clone();
                 copy.translate(offset);
-                shape::to_raw(&copy)
+                mesh::to_raw(&copy)
             })
             .collect();
         let shapes_raw = bytemuck::cast_slice(&data);
@@ -394,7 +395,7 @@ impl Renderer {
         }
     }
 
-    pub fn render<F: FnMut(&egui::Context)>(&mut self, ui_callback: &mut F) -> f32 {
+    pub fn render(&mut self, ui_state: &mut UIState) -> f32 {
         let now = SystemTime::now();
         let delta_time = now.duration_since(self.current_time).unwrap().as_millis() as f32;
         self.current_time = now;
@@ -414,7 +415,7 @@ impl Renderer {
             &self.queue,
             &mut encoder,
             &surface_texture_view,
-            ui_callback,
+            ui_state,
         );
 
         self.queue.submit([encoder.finish()]);

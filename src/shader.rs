@@ -25,7 +25,7 @@ pub fn load_shader_source(path: &PathBuf) -> Result<String, io::Error> {
 
 pub fn setup_shader_vars(
     device: &Device,
-    vars: &Vec<ShaderVar>,
+    vars: &[ShaderVar],
 ) -> (Vec<Buffer>, BindGroupLayout, BindGroup) {
     let buffers: Vec<Buffer> = vars
         .iter()

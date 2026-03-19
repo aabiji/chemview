@@ -4,10 +4,10 @@ use memchr::memmem::find_iter;
 use memmap::{Mmap, MmapOptions};
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::Path;
 
-use crate::pipeline::CompoundPipeline;
-use crate::shape::CompoundMeshInfo;
+use crate::mesh::CompoundMeshInfo;
+use crate::pipeline::{CompoundPipeline, ViewType};
 
 #[derive(Debug)]
 enum Token {
@@ -58,21 +58,23 @@ pub struct DataBlock {
 #[derive(Debug)]
 pub struct Parser {
     pub data_blocks: HashMap<String, DataBlock>,
-    mmap: Mmap,
+    mmap: Option<Mmap>,
 }
 
 impl Parser {
-    pub fn new(filename: &str) -> Result<Self, String> {
-        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        path.push("data");
-        path.push("mmcif");
-        path.push(filename);
+    pub fn default() -> Self {
+        Self {
+            mmap: None,
+            data_blocks: HashMap::new(),
+        }
+    }
 
+    pub fn new(path: &Path) -> Result<Self, String> {
         let file = File::open(path).map_err(|e| e.to_string())?;
         let mmap = unsafe { MmapOptions::new().map(&file).map_err(|e| e.to_string())? };
 
         let mut parser = Self {
-            mmap: mmap,
+            mmap: Some(mmap),
             data_blocks: HashMap::new(),
         };
         parser.find_datablocks();
@@ -82,9 +84,9 @@ impl Parser {
     // First pass: scan the file for offsets to data blocks
     fn find_datablocks(&mut self) {
         let needle = "data_";
-        let bytes: &[u8] = &self.mmap;
+        let bytes: &[u8] = self.mmap.as_ref().unwrap();
 
-        let mut offsets: Vec<usize> = find_iter(&bytes, needle.as_bytes()).collect();
+        let mut offsets: Vec<usize> = find_iter(bytes, needle.as_bytes()).collect();
         offsets.push(bytes.len());
 
         for i in (0..offsets.len()).step_by(2) {
@@ -137,7 +139,7 @@ impl Parser {
                 }
 
                 *i += 1; // End quote
-                let token = Token::new(&substring(start + 1, *i - 1));
+                let token = Token::new(substring(start + 1, *i - 1));
                 if peek {
                     *i = before;
                 }
@@ -173,7 +175,7 @@ impl Parser {
         let mut prev_column = String::new();
         let mut prev_block = String::new();
 
-        let bytes = self.mmap.to_vec();
+        let bytes = self.mmap.as_ref().unwrap().to_vec();
         while i < end {
             let token = Self::next_token(&mut i, &bytes, false);
 
@@ -228,19 +230,33 @@ impl Parser {
     }
 }
 
-struct MMCIFLoader {
+pub struct MMCIFLoader {
     parser: Parser,
 }
 
+impl MMCIFLoader {
+    pub fn init() -> Result<Self, String> {
+        // TODO: parse the CCD here
+        Ok(Self {
+            parser: Parser::default(),
+        })
+    }
+}
+
 impl CompoundPipeline for MMCIFLoader {
-    fn init() -> Result<Self, String> {
+    fn parse_file(&mut self, path: &Path) -> Result<(), String> {
+        //let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        //path.push("data");
+        //path.push("mmcif");
+        //path.push(filename);
+
+        self.parser = Parser::new(path)?;
+        // TODO: parse data blocks here!
+
         Ok(())
     }
 
-    fn parse_file(&mut self, path: &PathBuf) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn compute_mesh_info(&mut self, camera_front: Vec3, use_waal_radius: bool) -> CompoundMeshInfo {
+    fn compute_mesh_info(&mut self, camera_front: Vec3, view: &ViewType) -> CompoundMeshInfo {
+        todo!("Generate spheres and cylinders");
     }
 }

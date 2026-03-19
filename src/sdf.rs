@@ -1,7 +1,7 @@
-use crate::pipeline::{CompoundPipeline, ElementDB, load_element_db};
-use crate::shape::{CompoundMeshInfo, Shape};
+use crate::mesh::{CompoundMeshInfo, Shape};
+use crate::pipeline::{CompoundPipeline, ElementDB, ViewType, load_element_db};
 use glam::Vec3;
-use std::path::PathBuf;
+use std::path::Path;
 
 #[derive(Debug, PartialEq)]
 pub struct Atom {
@@ -89,7 +89,7 @@ fn parse_sdf_content(contents: &str) -> Result<(String, String, Vec<Atom>, Vec<B
     Ok((name, formula, atoms, bonds))
 }
 
-struct SDFLoader {
+pub struct SDFLoader {
     name: String,
     formula: String,
     atoms: Vec<Atom>,
@@ -98,6 +98,16 @@ struct SDFLoader {
 }
 
 impl SDFLoader {
+    pub fn init() -> Result<Self, String> {
+        Ok(Self {
+            name: String::new(),
+            formula: String::new(),
+            atoms: Vec::new(),
+            bonds: Vec::new(),
+            element_db: load_element_db()?,
+        })
+    }
+
     fn atom_to_sphere(
         &self,
         atom: &Atom,
@@ -127,29 +137,19 @@ impl SDFLoader {
         Shape::Sphere {
             origin: atom.position,
             color: Vec3::from_slice(&info.color),
-            radius: radius as f32 / max_radius,
+            radius: radius / max_radius,
         }
     }
 }
 
 impl CompoundPipeline for SDFLoader {
-    fn init() -> Result<Self, String> {
-        Ok(Self {
-            name: String::new(),
-            formula: String::new(),
-            atoms: Vec::new(),
-            bonds: Vec::new(),
-            element_db: load_element_db()?,
-        })
-    }
-
-    fn parse_file(&mut self, path: &PathBuf) -> Result<(), String> {
-        let contents = std::fs::read_to_string(&path).map_err(|err| err.to_string())?;
+    fn parse_file(&mut self, path: &Path) -> Result<(), String> {
+        let contents = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
         (self.name, self.formula, self.atoms, self.bonds) = parse_sdf_content(&contents)?;
         Ok(())
     }
 
-    fn compute_mesh_info(&mut self, camera_front: Vec3, use_waal_radius: bool) -> CompoundMeshInfo {
+    fn compute_mesh_info(&mut self, camera_front: Vec3, view: &ViewType) -> CompoundMeshInfo {
         let mut mesh = CompoundMeshInfo::default(self.atoms.len());
 
         let max_covalent_radii = *self
@@ -165,13 +165,13 @@ impl CompoundPipeline for SDFLoader {
                 &self.atoms[bond.src_index],
                 bond.multiplicity,
                 max_covalent_radii,
-                use_waal_radius,
+                *view == ViewType::SpacingFilling,
             );
             let dst_sphere = self.atom_to_sphere(
                 &self.atoms[bond.dst_index],
                 bond.multiplicity,
                 max_covalent_radii,
-                use_waal_radius,
+                *view == ViewType::SpacingFilling,
             );
 
             // Update the bounding box
@@ -183,7 +183,7 @@ impl CompoundPipeline for SDFLoader {
             mesh.shapes[bond.dst_index] = dst_sphere;
 
             // Only need to render bonds in the ball and stick model
-            if !use_waal_radius {
+            if *view != ViewType::SpacingFilling {
                 // Position the bonds spread out horizontally relative to the screen
                 // The bonds are centered in between the two atoms
                 let start = self.atoms[bond.src_index].position;

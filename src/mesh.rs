@@ -182,7 +182,7 @@ fn generate_sphere_mesh(
     // Generate the sphere indices
     for i in 0..stack_count {
         let mut k1 = (i as u32) * (sector_count + 1) as u32;
-        let mut k2 = (k1 + (sector_count as u32) + 1) as u32;
+        let mut k2 = k1 + (sector_count as u32) + 1;
 
         for _ in 0..sector_count {
             if i != 0 {
@@ -236,7 +236,7 @@ fn generate_cylinder_mesh(
     }
 
     // Generate the cylinder indices
-    let mut k1 = 0 as u32;
+    let mut k1 = 0;
     let mut k2 = (sector_count + 1) as u32;
 
     for _ in 0..sector_count {

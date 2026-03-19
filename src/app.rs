@@ -1,4 +1,4 @@
-use glam::Vec3;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use winit::{
@@ -9,154 +9,84 @@ use winit::{
     window::{WindowAttributes, WindowId},
 };
 
+use crate::camera::Action;
+use crate::mmcif::MMCIFLoader;
+use crate::pipeline::{CompoundPipeline, ViewType};
 use crate::renderer::Renderer;
-use crate::{camera::Action, compound};
-
-#[derive(PartialEq)]
-enum ViewType {
-    BallAndStick,
-    SpacingFilling,
-}
-
-impl ViewType {
-    fn to_string(&self) -> String {
-        match *self {
-            ViewType::BallAndStick => String::from("Ball and Stick"),
-            ViewType::SpacingFilling => String::from("Space filling"),
-        }
-    }
-}
-
-struct UIState {
-    compound_formula: String,
-    compound_name: String,
-    file_path: String,
-    error_message: String,
-    handled_file_change: bool,
-    view_type: ViewType,
-    fps: f32,
-}
-
-impl UIState {
-    fn render(&mut self, ctx: &egui::Context) {
-        egui::Window::new("Debug")
-            .default_size([250.0, 250.0])
-            .title_bar(false)
-            .movable(false)
-            .resizable(false)
-            .show(ctx, |ui| {
-                ui.horizontal(|h_ui| {
-                    h_ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button(">").clicked() {
-                            self.handled_file_change = false;
-                        }
-                        ui.add_sized(
-                            ui.available_size(),
-                            egui::TextEdit::singleline(&mut self.file_path),
-                        );
-                    });
-                });
-
-                if !self.error_message.is_empty() {
-                    ui.label(
-                        egui::RichText::new(format!("{}", self.error_message))
-                            .color(egui::Color32::LIGHT_RED),
-                    );
-                }
-
-                ui.horizontal(|h_ui| {
-                    h_ui.label(egui::RichText::new(format!("{}", self.compound_name)).strong());
-                    h_ui.add_space(45.0);
-                    h_ui.label(egui::RichText::new(format!("{}", self.compound_formula)).strong());
-                    h_ui.add_space(45.0);
-                    h_ui.label(egui::RichText::new(format!("FPS: {}", self.fps)).strong());
-                });
-
-                ui.horizontal(|h_ui| {
-                    h_ui.label("Visualizer type");
-                    egui::ComboBox::from_id_salt("cobo")
-                        .selected_text(self.view_type.to_string())
-                        .show_ui(h_ui, |combo_ui| {
-                            if combo_ui
-                                .selectable_value(
-                                    &mut self.view_type,
-                                    ViewType::BallAndStick,
-                                    ViewType::BallAndStick.to_string(),
-                                )
-                                .clicked()
-                            {
-                                self.handled_file_change = false;
-                            }
-                            if combo_ui
-                                .selectable_value(
-                                    &mut self.view_type,
-                                    ViewType::SpacingFilling,
-                                    ViewType::SpacingFilling.to_string(),
-                                )
-                                .clicked()
-                            {
-                                self.handled_file_change = false;
-                            }
-                        });
-                });
-            });
-    }
-}
+use crate::sdf::SDFLoader;
+use crate::ui::UIState;
 
 pub struct App {
+    ui_state: UIState,
     renderer: Option<Renderer>,
-    state: UIState,
+    pipelines: HashMap<String, Box<dyn CompoundPipeline>>,
 }
 
 impl App {
     pub fn default() -> Self {
         Self {
-            state: UIState {
-                compound_formula: String::new(),
-                compound_name: String::new(),
+            ui_state: UIState {
                 file_path: String::from(""),
-                error_message: String::new(),
+                path_changed: false,
+                error_message: None,
+                compound_description: String::new(),
                 view_type: ViewType::BallAndStick,
-                handled_file_change: true,
+                view_changed: false,
                 fps: 0.0,
             },
+            pipelines: HashMap::new(),
             renderer: None,
         }
     }
 
-    fn load_compound(&mut self, camera_front: Vec3) -> Result<(), String> {
-        let info = compound::load_element_info()?;
-        let contents =
-            std::fs::read_to_string(&self.state.file_path).map_err(|err| err.to_string())?;
+    fn update_compound(&mut self) {
+        let mut load = || -> Result<(), String> {
+            let extension = self
+                .ui_state
+                .file_path
+                .split(".")
+                .last()
+                .ok_or("Unkonwn file format")?;
 
-        let (name, formula, atoms, bonds) = compound::parse_compound(&contents)?;
-        let mesh = compound::assemble_mesh(
-            atoms,
-            bonds,
-            &info,
-            camera_front,
-            self.state.view_type == ViewType::SpacingFilling,
-        );
+            // Memoize pipelines
+            if !self.pipelines.contains_key(extension) {
+                let obj: Box<dyn CompoundPipeline> = match extension {
+                    "sdf" => Box::new(SDFLoader::init()?),
+                    "cif" => Box::new(MMCIFLoader::init()?),
+                    _ => return Err(String::from("Unkonwn file type")),
+                };
+                self.pipelines.insert(extension.to_string(), obj);
+            }
 
-        self.renderer.as_mut().unwrap().set_mesh_data(&mesh);
-        self.state.compound_name = name;
-        self.state.compound_formula = formula;
+            if self.ui_state.path_changed {
+                let path = PathBuf::from(&self.ui_state.file_path);
+                self.pipelines
+                    .get_mut(extension)
+                    .unwrap()
+                    .parse_file(&path)?;
+            }
 
-        Ok(())
-    }
+            let front = self.renderer.as_mut().unwrap().controller.front();
+            let mesh = self
+                .pipelines
+                .get_mut(extension)
+                .unwrap()
+                .compute_mesh_info(front, &self.ui_state.view_type);
+            self.renderer.as_mut().unwrap().set_mesh_data(&mesh);
 
-    fn handle_new_compound(&mut self) {
-        if self.state.handled_file_change {
-            return;
+            Ok(())
+        };
+
+        if !self.ui_state.file_path.is_empty()
+            && (self.ui_state.path_changed || self.ui_state.view_changed)
+        {
+            match load() {
+                Ok(_) => self.ui_state.error_message = None,
+                Err(err) => self.ui_state.error_message = Some(err),
+            };
+            self.ui_state.path_changed = false;
+            self.ui_state.view_changed = false;
         }
-
-        let front = self.renderer.as_mut().unwrap().controller.front();
-        if let Err(err) = self.load_compound(front) {
-            self.state.error_message = err;
-        } else {
-            self.state.error_message = String::new();
-        }
-        self.state.handled_file_change = true;
     }
 }
 
@@ -180,7 +110,6 @@ impl ApplicationHandler for App {
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         let renderer = self.renderer.as_mut().unwrap();
-        let mut callback = |ctx: &egui::Context| self.state.render(ctx);
 
         let egui_consummed = renderer.ui.on_window_event(&renderer.window, &event);
         if egui_consummed {
@@ -190,14 +119,14 @@ impl ApplicationHandler for App {
 
         match event {
             WindowEvent::RedrawRequested => {
-                self.state.fps = renderer.render(&mut callback);
+                self.ui_state.fps = renderer.render(&mut self.ui_state);
 
                 // Only update when needed
                 if renderer.controller.is_active() {
                     renderer.get_window().request_redraw();
                 }
 
-                self.handle_new_compound();
+                self.update_compound();
             }
 
             WindowEvent::CloseRequested => event_loop.exit(),

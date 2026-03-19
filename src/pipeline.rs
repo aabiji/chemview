@@ -1,8 +1,10 @@
-use crate::shape::CompoundMeshInfo;
+use crate::mesh::CompoundMeshInfo;
 use glam::Vec3;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use std::fmt::{self, Display, Formatter};
 
 #[derive(Deserialize)]
 pub struct ElementInfo {
@@ -20,10 +22,23 @@ pub fn load_element_db() -> Result<ElementDB, String> {
     serde_json::from_str(&contents).map_err(|err| err.to_string())
 }
 
-pub trait CompoundPipeline: Sized {
-    fn init() -> Result<Self, String>;
+#[derive(PartialEq)]
+pub enum ViewType {
+    BallAndStick,
+    SpacingFilling,
+}
 
-    fn parse_file(&mut self, path: &PathBuf) -> Result<(), String>;
+impl Display for ViewType {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match *self {
+            ViewType::BallAndStick => write!(f, "Ball and Stick"),
+            ViewType::SpacingFilling => write!(f, "Space filling"),
+        }
+    }
+}
 
-    fn compute_mesh_info(&mut self, camera_front: Vec3, use_waal_radius: bool) -> CompoundMeshInfo;
+pub trait CompoundPipeline {
+    fn parse_file(&mut self, path: &Path) -> Result<(), String>;
+
+    fn compute_mesh_info(&mut self, camera_front: Vec3, view: &ViewType) -> CompoundMeshInfo;
 }
