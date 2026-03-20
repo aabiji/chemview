@@ -33,7 +33,20 @@ pub struct Ligand {
     pub atoms: IndexMap<String, Atom>,
 }
 
-pub type Chain = IndexMap<String, Vec<Atom>>; // Sequence id to residue atoms
+impl Ligand {
+    fn get_atom(
+        &self,
+        index: &Option<usize>,
+        id: &Option<String>,
+    ) -> (Option<&Atom>, Option<usize>) {
+        if let Some(i) = index {
+            (self.atoms.get_index(*i).map(|(_, v)| v), *index)
+        } else {
+            let id = id.as_ref().unwrap();
+            (self.atoms.get(id), self.atoms.get_index_of(id))
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct Structure {
@@ -52,15 +65,6 @@ struct ElementInfo {
     waal_radius: i32,
     covalent_radius: [i32; 3],
     color: [f32; 3],
-}
-
-type ElementDB = HashMap<String, ElementInfo>;
-
-fn load_element_db() -> Result<ElementDB, String> {
-    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let info_path = base.join("data/element_data.json");
-    let contents = std::fs::read_to_string(info_path).map_err(|err| err.to_string())?;
-    serde_json::from_str(&contents).map_err(|err| err.to_string())
 }
 
 #[derive(PartialEq)]
@@ -85,10 +89,22 @@ pub struct Tesselator {
     pub bounding_min: Vec3,
     pub bounding_max: Vec3,
 
-    element_db: ElementDB,
+    element_db: HashMap<String, ElementInfo>,
 }
 
 impl Tesselator {
+    pub fn init(&mut self) -> Result<(), String> {
+        if self.element_db.len() > 0 {
+            return Ok(()); // already loaded
+        }
+
+        let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let info_path = base.join("data/element_data.json");
+        let contents = std::fs::read_to_string(info_path).map_err(|err| err.to_string())?;
+        self.element_db = serde_json::from_str(&contents).map_err(|err| err.to_string())?;
+        Ok(())
+    }
+
     pub fn update_bounds(&mut self, bounds: (Vec3, Vec3)) {
         self.bounding_min = self.bounding_min.min(bounds.0);
         self.bounding_max = self.bounding_max.max(bounds.1);
@@ -169,16 +185,21 @@ impl Tesselator {
             .max()
             .unwrap_or(&0) as f32;
 
-        for (_, ligand) in structure.ligands {
+        for (_, ligand) in &structure.ligands {
             for bond in &ligand.bonds {
+                let (src_atom, src_idx) = ligand.get_atom(&bond.src_index, &bond.src_id);
+                let (dst_atom, dst_idx) = ligand.get_atom(&bond.dst_index, &bond.dst_id);
+                let (src_atom, src_idx) = (src_atom.unwrap(), src_idx.unwrap());
+                let (dst_atom, dst_idx) = (dst_atom.unwrap(), dst_idx.unwrap());
+
                 let src_sphere = self.atom_to_sphere(
-                    &self.atoms[bond.src_index],
+                    &src_atom,
                     bond.multiplicity,
                     max_covalent_radii,
                     *view == RenderStyle::SpacingFilling,
                 );
                 let dst_sphere = self.atom_to_sphere(
-                    &self.atoms[bond.dst_index],
+                    &dst_atom,
                     bond.multiplicity,
                     max_covalent_radii,
                     *view == RenderStyle::SpacingFilling,
@@ -189,16 +210,19 @@ impl Tesselator {
                 self.update_bounds(dst_sphere.bounds());
 
                 // Update the radius of the bonded atoms
-                self.shapes[bond.src_index] = src_sphere;
-                self.shapes[bond.dst_index] = dst_sphere;
+                self.shapes[src_idx] = src_sphere;
+                self.shapes[dst_idx] = dst_sphere;
 
                 // Only need to render bonds in the ball and stick model
                 if *view != RenderStyle::SpacingFilling {
                     // Position the bonds spread out horizontally relative to the screen
                     // The bonds are centered in between the two atoms
-                    let start = self.atoms[bond.src_index].position;
-                    let end = self.atoms[bond.dst_index].position;
-                    self.add_bond(start, end, camera_front, bond.multiplicity);
+                    self.add_bond(
+                        src_atom.position,
+                        dst_atom.position,
+                        camera_front,
+                        bond.multiplicity,
+                    );
                 }
             }
         }

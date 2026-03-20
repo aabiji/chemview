@@ -66,6 +66,8 @@ impl App {
             }
 
             let front = self.renderer.as_mut().unwrap().controller.front();
+
+            self.tesselator.init()?;
             self.tesselator
                 .tesselate(&self.structure, front, &self.ui_state.view_type);
             self.renderer
