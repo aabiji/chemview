@@ -2,13 +2,13 @@ use egui_wgpu::{RendererOptions, ScreenDescriptor};
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 use winit::{event::WindowEvent, window::Window};
 
-use crate::pipeline::ViewType;
+use crate::tesselate::RenderStyle;
 
 pub struct UIState {
     pub file_path: String,
     pub path_changed: bool,
     pub error_message: Option<String>,
-    pub view_type: ViewType,
+    pub view_type: RenderStyle,
     pub view_changed: bool,
     pub fps: f32,
 }
@@ -96,15 +96,15 @@ impl DebugUI {
                             if combo_ui
                                 .selectable_value(
                                     &mut state.view_type,
-                                    ViewType::BallAndStick,
-                                    ViewType::BallAndStick.to_string(),
+                                    RenderStyle::BallAndStick,
+                                    RenderStyle::BallAndStick.to_string(),
                                 )
                                 .clicked()
                                 || combo_ui
                                     .selectable_value(
                                         &mut state.view_type,
-                                        ViewType::SpacingFilling,
-                                        ViewType::SpacingFilling.to_string(),
+                                        RenderStyle::SpacingFilling,
+                                        RenderStyle::SpacingFilling.to_string(),
                                     )
                                     .clicked()
                             {

@@ -7,8 +7,77 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 
-use crate::mesh::CompoundMeshInfo;
-use crate::pipeline::{CompoundPipeline, ViewType};
+use crate::tesselate::{Atom, Bond, Ligand, Structure};
+
+pub trait FileLoader {
+    fn parse_file(&mut self, path: &Path) -> Result<Structure, String>;
+}
+
+fn split(lines: &str, sep: char, strip: bool) -> Vec<&str> {
+    lines
+        .split(sep)
+        .filter(|x| !strip || !x.is_empty())
+        .collect()
+}
+
+fn parse<T: std::str::FromStr>(v: &Vec<&str>, index: usize) -> Result<T, String> {
+    let element = v.get(index).ok_or(String::from("Missing value"))?;
+    element
+        .parse::<T>()
+        .map_err(|_| String::from("Invalid value"))
+}
+
+pub struct SDFLoader {}
+
+impl FileLoader for SDFLoader {
+    fn parse_file(&mut self, path: &Path) -> Result<Structure, String> {
+        let contents = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
+        let lines = split(&contents, '\n', false);
+
+        let count_line = parse::<String>(&lines, 3)?;
+        let count_fields = split(&count_line, ' ', true);
+        let num_atoms = parse::<usize>(&count_fields, 0)?;
+        let num_bonds = parse::<usize>(&count_fields, 1)?;
+
+        let mut ligand = Ligand::default();
+
+        for i in 0..num_atoms {
+            let line = parse::<String>(&lines, 4 + i)?;
+            let fields = split(&line, ' ', true);
+            ligand.atoms.insert(
+                format!("{i}"),
+                Atom {
+                    position: Vec3::new(
+                        parse::<f32>(&fields, 0)?,
+                        parse::<f32>(&fields, 1)?,
+                        parse::<f32>(&fields, 2)?,
+                    ),
+                    element: parse::<String>(&fields, 3)?,
+                },
+            );
+        }
+
+        for i in 0..num_bonds {
+            let line = parse::<String>(&lines, 4 + num_atoms + i)?;
+            let fields = split(&line, ' ', true);
+            ligand.bonds.push(Bond {
+                src_id: None,
+                dst_id: None,
+                src_index: Some(parse::<usize>(&fields, 0)? - 1),
+                dst_index: Some(parse::<usize>(&fields, 1)? - 1),
+                multiplicity: match parse::<usize>(&fields, 2)? {
+                    n @ 1..=3 => n,
+                    m => return Err(format!("Unreconized bond type: {m}")),
+                },
+            });
+        }
+
+        Ok(Structure {
+            ligands: HashMap::from([(String::from("Compound"), ligand)]),
+            ..Default::default()
+        })
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Token {
@@ -49,6 +118,7 @@ impl Token {
 
 #[derive(Default, Debug)]
 struct Table {
+    // keys are sorted by insertion order
     columns: IndexMap<String, Vec<Token>>,
     num_rows: usize,
 }
@@ -59,29 +129,18 @@ struct DataBlock {
     end_offset: usize,
 }
 
-pub struct Parser {
+#[derive(Default)]
+pub struct MMCIFLoader {
     data_blocks: HashMap<String, DataBlock>,
     mmap: Option<Mmap>,
 }
 
-impl Parser {
-    pub fn default() -> Self {
-        Self {
-            mmap: None,
-            data_blocks: HashMap::new(),
-        }
-    }
-
-    pub fn new(path: &Path) -> Result<Self, String> {
+impl MMCIFLoader {
+    fn open_file(&mut self, path: &Path) -> Result<(), String> {
         let file = File::open(path).map_err(|e| e.to_string())?;
-        let mmap = unsafe { MmapOptions::new().map(&file).map_err(|e| e.to_string())? };
-
-        let mut parser = Self {
-            mmap: Some(mmap),
-            data_blocks: HashMap::new(),
-        };
-        parser.find_datablocks();
-        Ok(parser)
+        self.mmap = Some(unsafe { MmapOptions::new().map(&file).map_err(|e| e.to_string())? });
+        self.find_datablocks();
+        Ok(())
     }
 
     // First pass: scan the file for offsets to data blocks
@@ -264,62 +323,25 @@ impl Parser {
     }
 }
 
-#[derive(Debug)]
-struct Bond {
-    src_id: String,
-    dst_id: String,
-    multiplicity: usize,
-}
+impl FileLoader for MMCIFLoader {
+    fn parse_file(&mut self, path: &Path) -> Result<Structure, String> {
+        self.open_file(path)?;
 
-#[derive(Debug)]
-struct Atom {
-    atom_id: String,
-    element: String,
-    position: Vec3,
-}
+        self.parse_block(None)?;
+        let t1 = self.get_table(None, "chem_comp_bond")?;
+        let t2 = self.get_table(None, "chem_comp_atom")?;
 
-struct Chain {
-    residues: HashMap<String, Vec<Atom>>, // Sequence id to residue atoms
-}
-
-#[derive(Default, Debug)]
-struct Ligand {
-    atoms: Vec<Atom>,
-    bonds: Vec<Bond>,
-}
-
-pub struct MMCIFLoader {
-    parser: Parser,
-    chains: HashMap<String, Chain>,   // Chain ID to chain
-    ligands: HashMap<String, Ligand>, // Ligand ID to ligand
-}
-
-impl MMCIFLoader {
-    pub fn init() -> Result<Self, String> {
-        // TODO: load the CCD here
-        Ok(Self {
-            parser: Parser::default(),
-            chains: HashMap::new(),
-            ligands: HashMap::new(),
-        })
-    }
-}
-
-impl CompoundPipeline for MMCIFLoader {
-    fn parse_file(&mut self, path: &Path) -> Result<(), String> {
-        self.parser = Parser::new(path)?;
-
-        self.parser.parse_block(None)?;
-        let t1 = self.parser.get_table(None, "chem_comp_bond")?;
-        let t2 = self.parser.get_table(None, "chem_comp_atom")?;
+        let mut ligands: HashMap<String, Ligand> = HashMap::new();
 
         for i in 0..t1.num_rows {
             let id = t1.columns["comp_id"][i].string()?;
-            let ligand = self.ligands.entry(id).or_default();
+            let ligand = ligands.entry(id).or_default();
 
             ligand.bonds.push(Bond {
-                src_id: t1.columns["atom_id_1"][i].string()?,
-                dst_id: t1.columns["atom_id_2"][i].string()?,
+                src_index: None,
+                dst_index: None,
+                src_id: Some(t1.columns["atom_id_1"][i].string()?),
+                dst_id: Some(t1.columns["atom_id_2"][i].string()?),
                 multiplicity: match t1.columns["value_order"][i].string()?.as_str() {
                     "DOUB" => 2,
                     "TRIP" => 3,
@@ -331,27 +353,26 @@ impl CompoundPipeline for MMCIFLoader {
 
         for i in 0..t2.num_rows {
             let id = t2.columns["comp_id"][i].string()?;
-            let ligand = self.ligands.entry(id).or_default();
+            let ligand = ligands.entry(id).or_default();
 
-            ligand.atoms.push(Atom {
-                // TODO: what about pdbx_component_atom_id
-                atom_id: t2.columns["atom_id"][i].string()?,
-                // TODO: what about pdbx_component_comp_id
-                element: t2.columns["type_symbol"][i].string()?,
-                position: glam::Vec3::new(
-                    t2.columns["pdbx_model_Cartn_x_ideal"][i].f32()?,
-                    t2.columns["pdbx_model_Cartn_y_ideal"][i].f32()?,
-                    t2.columns["pdbx_model_Cartn_z_ideal"][i].f32()?,
-                ),
-            });
+            ligand.atoms.insert(
+                t2.columns["atom_id"][i].string()?,
+                Atom {
+                    // TODO: what about pdbx_component_atom_id
+                    // TODO: what about pdbx_component_comp_id
+                    element: t2.columns["type_symbol"][i].string()?,
+                    position: glam::Vec3::new(
+                        t2.columns["pdbx_model_Cartn_x_ideal"][i].f32()?,
+                        t2.columns["pdbx_model_Cartn_y_ideal"][i].f32()?,
+                        t2.columns["pdbx_model_Cartn_z_ideal"][i].f32()?,
+                    ),
+                },
+            );
         }
 
-        dbg!(&self.ligands);
-
-        Ok(())
-    }
-
-    fn compute_mesh_info(&mut self, camera_front: Vec3, view: &ViewType) -> CompoundMeshInfo {
-        todo!("Generate spheres and cylinders");
+        Ok(Structure {
+            ligands,
+            ..Default::default()
+        })
     }
 }

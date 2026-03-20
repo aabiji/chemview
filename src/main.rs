@@ -3,12 +3,11 @@ use winit::event_loop::{ControlFlow, EventLoop};
 
 mod app;
 mod camera;
+mod loader;
 mod mesh;
-mod mmcif;
-mod pipeline;
 mod renderer;
-mod sdf;
 mod shader;
+mod tesselate;
 mod ui;
 
 fn main() {

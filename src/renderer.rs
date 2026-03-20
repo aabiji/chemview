@@ -17,15 +17,18 @@ use wgpu::{
 };
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::mesh::{InstanceData, Vertex};
-use crate::shader::ShaderVar;
+use crate::camera::CameraController;
 use crate::ui::DebugUI;
 use crate::ui::UIState;
-use crate::{camera::CameraController, mesh::CompoundMeshInfo};
 use crate::{mesh, shader};
+use crate::{mesh::Shape, shader::ShaderVar};
+use crate::{
+    mesh::{InstanceData, Vertex},
+    tesselate::Tesselator,
+};
 
 // The maximum size in bytes of a storage buffer will be 10 MB
-const STORAGE_BUFFE_SIZE: usize = 10 * 1024 * 1024;
+const STORAGE_BUFFER_SIZE: usize = 10 * 1024 * 1024;
 
 const MSAA_SAMPLE_COUNT: u32 = 4;
 
@@ -133,7 +136,7 @@ impl Renderer {
             ShaderVar {
                 is_f32: true,
                 is_storage: true,
-                num_bytes: STORAGE_BUFFE_SIZE,
+                num_bytes: STORAGE_BUFFER_SIZE,
                 label: String::from("Instance data"),
             },
         ];
@@ -218,7 +221,7 @@ impl Renderer {
             cylinder_instance_range: 0..0,
 
             ui,
-            controller: CameraController::new(),
+            controller: CameraController::default(),
             current_time: SystemTime::now(),
 
             surface,
@@ -319,19 +322,19 @@ impl Renderer {
             .write_buffer(&self.buffers[3], 0, bytemuck::cast_slice(&position));
     }
 
-    pub fn set_mesh_data(&mut self, mesh: &CompoundMeshInfo) {
+    pub fn set_mesh_data(&mut self, t: &Tesselator) {
         let target_pos = Vec3::new(0.0, 0.0, 0.0);
-        let size = mesh.bounding_max - mesh.bounding_min;
-        let offset = (mesh.bounding_min + size / 2.0) - target_pos;
+        let size = t.bounding_max - t.bounding_min;
+        let offset = (t.bounding_min + size / 2.0) - target_pos;
 
-        self.sphere_instance_range = 0..mesh.num_spheres;
-        self.cylinder_instance_range = mesh.num_spheres..mesh.shapes.len() as u32;
+        self.sphere_instance_range = 0..t.num_spheres as u32;
+        self.cylinder_instance_range = t.num_spheres as u32..t.shapes.len() as u32;
 
         // Center the shapes around the target position
-        let data: Vec<InstanceData> = mesh
+        let data: Vec<InstanceData> = t
             .shapes
             .iter()
-            .map(|s| {
+            .map(|s: &Shape| {
                 let mut copy = s.clone();
                 copy.translate(offset);
                 mesh::to_raw(&copy)
@@ -339,7 +342,7 @@ impl Renderer {
             .collect();
         let shapes_raw = bytemuck::cast_slice(&data);
 
-        assert!(shapes_raw.len() < STORAGE_BUFFE_SIZE); // TODO: handle error
+        assert!(shapes_raw.len() < STORAGE_BUFFER_SIZE); // TODO: handle error
         self.queue.write_buffer(&self.buffers[4], 0, shapes_raw); // Shapes data
     }
 

@@ -9,17 +9,19 @@ use winit::{
     window::{WindowAttributes, WindowId},
 };
 
-use crate::camera::Action;
-use crate::mmcif::MMCIFLoader;
-use crate::pipeline::{CompoundPipeline, ViewType};
+use crate::loader::{FileLoader, MMCIFLoader, SDFLoader};
 use crate::renderer::Renderer;
-use crate::sdf::SDFLoader;
+use crate::tesselate::{RenderStyle, Tesselator};
 use crate::ui::UIState;
+use crate::{camera::Action, tesselate::Structure};
 
 pub struct App {
-    ui_state: UIState,
     renderer: Option<Renderer>,
-    pipelines: HashMap<String, Box<dyn CompoundPipeline>>,
+    ui_state: UIState,
+
+    loaders: HashMap<String, Box<dyn FileLoader>>,
+    structure: Structure,
+    tesselator: Tesselator,
 }
 
 impl App {
@@ -29,11 +31,13 @@ impl App {
                 file_path: String::from("/home/aabiji/dev/chemview/data/mmcif/T44.cif"),
                 path_changed: false,
                 error_message: None,
-                view_type: ViewType::BallAndStick,
+                view_type: RenderStyle::BallAndStick,
                 view_changed: false,
                 fps: 0.0,
             },
-            pipelines: HashMap::new(),
+            tesselator: Tesselator::default(),
+            loaders: HashMap::new(),
+            structure: Structure::default(),
             renderer: None,
         }
     }
@@ -45,33 +49,29 @@ impl App {
                 .file_path
                 .split(".")
                 .last()
-                .ok_or("Unkonwn file format")?;
+                .ok_or("Unknown file format")?;
 
-            // Memoize pipelines
-            if !self.pipelines.contains_key(extension) {
-                let obj: Box<dyn CompoundPipeline> = match extension {
-                    "sdf" => Box::new(SDFLoader::init()?),
-                    "cif" => Box::new(MMCIFLoader::init()?),
-                    _ => return Err(String::from("Unkonwn file type")),
+            if !self.loaders.contains_key(extension) {
+                let obj: Box<dyn FileLoader> = match extension {
+                    "sdf" => Box::new(SDFLoader {}),
+                    "cif" => Box::new(MMCIFLoader::default()),
+                    _ => return Err(String::from("Unknown file type")),
                 };
-                self.pipelines.insert(extension.to_string(), obj);
+                self.loaders.insert(extension.to_string(), obj);
             }
 
             if self.ui_state.path_changed {
                 let path = PathBuf::from(&self.ui_state.file_path);
-                self.pipelines
-                    .get_mut(extension)
-                    .unwrap()
-                    .parse_file(&path)?;
+                self.structure = self.loaders.get_mut(extension).unwrap().parse_file(&path)?;
             }
 
             let front = self.renderer.as_mut().unwrap().controller.front();
-            let mesh = self
-                .pipelines
-                .get_mut(extension)
+            self.tesselator
+                .tesselate(&self.structure, front, &self.ui_state.view_type);
+            self.renderer
+                .as_mut()
                 .unwrap()
-                .compute_mesh_info(front, &self.ui_state.view_type);
-            self.renderer.as_mut().unwrap().set_mesh_data(&mesh);
+                .set_mesh_data(&self.tesselator);
 
             Ok(())
         };

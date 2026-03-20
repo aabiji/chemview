@@ -62,6 +62,10 @@ Molecule visualizer built in Rust and wgpu
   `_pdbx_struct_assembly_gen.oper_expression` -> `_pdbx_struct_oper_list.id`            : map the assembly operation to the actual transformation matrices
   `_atom_site`: (label_entity_id, label_asym_id, label_seq_id)
 ```
+- Visualization pipeline:
+  1. Parse files (SDF< mmCIF) into `Structure`
+  2. Tesselate `Structure` into `Shape`s
+  3. Convert `Shape`s to mesh data for rendering
 
 ---
 
@@ -130,7 +134,7 @@ Part 2 -> Render proteins:
     - [ ] The ball and stick renderer should not render spheres (or make the spheres much, much smaller)
     - [ ] The renderer should filter out H, since it clutters the view
 
-  - [ ] Abstract away the file format used. Use an interface that loads the file, then the file to output a mesh,
+  - [x] Abstract away the file format used. Use an interface that loads the file, then the file to output a mesh,
         use that mesh data (not tied to any semantic meaning) to do instance rendering
 
 - Render the protein in different ways

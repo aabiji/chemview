@@ -20,8 +20,8 @@ struct Camera {
     yaw: f32,
 }
 
-impl Camera {
-    pub fn new() -> Self {
+impl Default for Camera {
+    fn default() -> Self {
         Self {
             pitch: 0.0,
             yaw: 0.0,
@@ -30,7 +30,9 @@ impl Camera {
             position: Vec3::new(0.0, 0.0, -10.0),
         }
     }
+}
 
+impl Camera {
     pub fn position(&self) -> [f32; 4] {
         [self.position.x, self.position.y, self.position.z, 0.0]
     }
@@ -85,10 +87,10 @@ pub struct CameraController {
     speed: f32,
 }
 
-impl CameraController {
-    pub fn new() -> Self {
+impl Default for CameraController {
+    fn default() -> Self {
         Self {
-            camera: Camera::new(),
+            camera: Camera::default(),
             actions: HashSet::new(),
             mouse_down: false,
             prev_mouse: Vec2::new(0.0, 0.0),
@@ -97,7 +99,9 @@ impl CameraController {
             speed: 10.0,
         }
     }
+}
 
+impl CameraController {
     pub fn camera_state(
         &self,
         aspect_ratio: f32,
