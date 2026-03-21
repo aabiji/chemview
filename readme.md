@@ -48,6 +48,11 @@ Molecule visualizer built in Rust and wgpu
 - Quaternary
   - A collection of polypeptide chains (not covalently bonded to each other) held together by the tertiary interactions described above.
 
+*Model types*
+- Space filling: Represents the physical volume of each of the atoms in a compound.
+- Wireframe: Represents the bonds between atoms.
+- Ball and stick: Wireframe with spheres to represent atoms.
+
 - ![](https://cdn.ncbi.nlm.nih.gov/pmc/blobs/8d18/7203745/a81d112126a1/btaa072f1.jpg)
 ```
   `_entity.id`                                -> `_struct_asym.entity_id`               : map an entity to its chains
@@ -63,11 +68,10 @@ Molecule visualizer built in Rust and wgpu
   `_atom_site`: (label_entity_id, label_asym_id, label_seq_id)
 ```
 - Visualization pipeline:
-  1. Parse files (SDF< mmCIF) into `Structure`
+  1. Parse files (SDF, mmCIF) into `Structure`
   2. Tesselate `Structure` into `Shape`s
   3. Convert `Shape`s to mesh data for rendering
 
----
 
 ### Ressources
 
@@ -81,10 +85,7 @@ Molecule visualizer built in Rust and wgpu
 - [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
 - [Secondary Structure and Loops](https://bio.libretexts.org/Bookshelves/Biochemistry/Fundamentals_of_Biochemistry_(Jakubowski_and_Flatt)/01%3A_Unit_I-_Structure_and_Catalysis/04%3A_The_Three-Dimensional_Structure_of_Proteins/4.02%3A_Secondary_Structure_and_Loops)
 
-- [The Macromolecular Crystallographic Information File (mmCIF)](https://www.researchgate.net/publication/2777797_The_Macromolecular_Crystallographic_Information_File_mmCIF)
-- [PDB-101](https://pdb101.rcsb.org/)
-- [PDBx/mmCIF User Giude](https://mmcif.wwpdb.org/docs/user-guide/guide.html)
-- [Structures of Human Sequences](https://www.rcsb.org/search?q=rcsb_entity_source_organism.ncbi_scientific_name:Homo%20sapiens)
+-- [Structures of Human Sequences](https://www.rcsb.org/search?q=rcsb_entity_source_organism.ncbi_scientific_name:Homo%20sapiens)
 - [Rendering techniques for proteins](https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2021.642172/full)
 
 ### Roadmap
@@ -130,22 +131,16 @@ Part 2 -> Render proteins:
   - [ ] Render those parsed atoms and bonds
     - [ ] Loading should be done on a seperate thread. Updating the compound's view type should be
           done by creating shape buffers for all view types, then switching them out during runtime.
-    - [ ] The ball and stick renderer should color the bonds based off of which atom is attached
-    - [ ] The ball and stick renderer should not render spheres (or make the spheres much, much smaller)
     - [ ] The renderer should filter out H, since it clutters the view
 
   - [x] Abstract away the file format used. Use an interface that loads the file, then the file to output a mesh,
         use that mesh data (not tied to any semantic meaning) to do instance rendering
+  - [x] Wirefram diagram
+  - [x] Space filling diagram
 
-- Render the protein in different ways
-  - [ ] Wirefram diagram: draw a line for each of the covalent bonds formed between atoms
-      - Add dotted lines for hydrogen bonds and disulfide bonds
-
-  - [ ] Space filling model
-    - [ ] The protein will have several orders of magnitude more atoms than
-          the simple compounds, so research several techniques to optimize rendering
-    - [ ] Implement frustrum culling: don't render objects outside of the camera's view
-    - [ ] Level of detail: switch between different representations based off of the zoom level
+  - [ ] Add dotted lines for hydrogen bonds and disulfide bonds
+  - [ ] Implement frustrum culling: don't render objects outside of the camera's view
+  - [ ] Level of detail: switch between different representations based off of the zoom level (for massive molecules)
 
   - [ ] Backbone and ribbon diagram: draw a tube that connects the positions of each amino acid.
         Add a spring shaped ribbon to represent alpha helices and a flat arrow to represent beta strands.

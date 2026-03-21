@@ -93,23 +93,29 @@ impl DebugUI {
                     egui::ComboBox::from_id_salt("combo")
                         .selected_text(state.view_type.to_string())
                         .show_ui(h_ui, |combo_ui| {
-                            if combo_ui
+                            state.view_changed |= combo_ui
                                 .selectable_value(
                                     &mut state.view_type,
                                     RenderStyle::BallAndStick,
                                     RenderStyle::BallAndStick.to_string(),
                                 )
-                                .clicked()
-                                || combo_ui
-                                    .selectable_value(
-                                        &mut state.view_type,
-                                        RenderStyle::SpacingFilling,
-                                        RenderStyle::SpacingFilling.to_string(),
-                                    )
-                                    .clicked()
-                            {
-                                state.view_changed = true;
-                            }
+                                .clicked();
+
+                            state.view_changed |= combo_ui
+                                .selectable_value(
+                                    &mut state.view_type,
+                                    RenderStyle::Wireframe,
+                                    RenderStyle::Wireframe.to_string(),
+                                )
+                                .clicked();
+
+                            state.view_changed |= combo_ui
+                                .selectable_value(
+                                    &mut state.view_type,
+                                    RenderStyle::SpaceFilling,
+                                    RenderStyle::SpaceFilling.to_string(),
+                                )
+                                .clicked();
                         });
                 });
             });

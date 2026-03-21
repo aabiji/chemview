@@ -16,7 +16,7 @@ headers = {  # Pretend this script is a browser
     "Accept-Language": "en-US,en;q=0.5",
 }
 
-names = {
+name_replacements = {
     "Uut": "Nh",
     "Uuq": "Fl",
     "Uup": "Mc",
@@ -31,19 +31,19 @@ response1 = requests.get(url1).json()
 data = {}
 
 for row in response1["Table"]["Row"]:
-    element, hex, radius_str = row["Cell"][1], row["Cell"][4], row["Cell"][7]
+    element, hex_color, radius_str = row["Cell"][1], row["Cell"][4], row["Cell"][7]
 
     color_rgb = [1.0, 1.0, 1.0]
-    if len(hex) == 6:
+    if len(hex_color) == 6:
         color_rgb = [
-            int(hex[0:2], 16) / 255.0,
-            int(hex[2:4], 16) / 255.0,
-            int(hex[4:6], 16) / 255.0,
+            round(int(hex_color[0:2], 16) / 255.0, 2),
+            round(int(hex_color[2:4], 16) / 255.0, 2),
+            round(int(hex_color[4:6], 16) / 255.0, 2),
         ]
 
     van_der_wall = -1
     if len(radius_str) > 0:
-        van_der_wall = int(radius_str)
+        van_der_wall = float(radius_str) / 100.0 # Convert from picometers to Angstroms
 
     data[element] = {"color": color_rgb, "waal_radius": van_der_wall}
 
@@ -56,15 +56,11 @@ table_rows = soup.select_one(table_selector).find_all("tr", recusive=False)
 
 for row in table_rows:
     cells = [cell.get_text() for cell in row.find_all("td", recursive=False)]
-    single_bond, double_bond, triple_bond = cells[3], cells[4], cells[5]
-    element = cells[1]
-    if element in names:
-        element = names[element]
-    data[element]["covalent_radius"] = [
-        -1 if single_bond == "-" else int(single_bond),
-        -1 if double_bond == "-" else int(double_bond),
-        -1 if triple_bond == "-" else int(triple_bond),
-    ]
+    element, radius = cells[1], cells[3]
+    if element in name_replacements:
+        element = name_replacements[element]
+    # Convert from picometers to Angstroms
+    data[element]["covalent_radius"] = -1 if radius == "-" else float(radius) / 100.0
 
 with open(output_file, "w") as file:
-    file.write(json.dumps(data, indent=2))
+    file.write(json.dumps(data))

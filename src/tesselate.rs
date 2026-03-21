@@ -1,7 +1,7 @@
 use glam::Vec3;
 use indexmap::IndexMap;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 
@@ -34,16 +34,12 @@ pub struct Ligand {
 }
 
 impl Ligand {
-    fn get_atom(
-        &self,
-        index: &Option<usize>,
-        id: &Option<String>,
-    ) -> (Option<&Atom>, Option<usize>) {
+    fn get_atom(&self, index: &Option<usize>, id: &Option<String>) -> &Atom {
         if let Some(i) = index {
-            (self.atoms.get_index(*i).map(|(_, v)| v), *index)
+            self.atoms.get_index(*i).map(|(_, v)| v).unwrap()
         } else {
             let id = id.as_ref().unwrap();
-            (self.atoms.get(id), self.atoms.get_index_of(id))
+            self.atoms.get(id).unwrap()
         }
     }
 }
@@ -53,31 +49,26 @@ pub struct Structure {
     pub ligands: HashMap<String, Ligand>, // ligand id to ligand
 }
 
-impl Structure {
-    // TODO: what about chains?
-    fn num_atoms(&self) -> usize {
-        self.ligands.values().map(|l| l.atoms.len()).sum()
-    }
-}
-
 #[derive(Deserialize)]
 struct ElementInfo {
-    waal_radius: i32,
-    covalent_radius: [i32; 3],
+    waal_radius: f32,
+    covalent_radius: f32,
     color: [f32; 3],
 }
 
 #[derive(PartialEq)]
 pub enum RenderStyle {
+    Wireframe,
     BallAndStick,
-    SpacingFilling,
+    SpaceFilling,
 }
 
 impl Display for RenderStyle {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
+            RenderStyle::Wireframe => write!(f, "Wireframe"),
             RenderStyle::BallAndStick => write!(f, "Ball and Stick"),
-            RenderStyle::SpacingFilling => write!(f, "Space filling"),
+            RenderStyle::SpaceFilling => write!(f, "Space filling"),
         }
     }
 }
@@ -114,117 +105,118 @@ impl Tesselator {
         &mut self,
         start_pos: Vec3,
         end_pos: Vec3,
+        start_color: Vec3,
+        end_color: Vec3,
         camera_front: Vec3,
         multiplicity: usize,
     ) {
+        let bond_radius = 0.04;
         let bond_direction = (end_pos - start_pos).normalize();
+        let midpoint = (start_pos + end_pos) / 2.0;
         let view_right = bond_direction.cross(camera_front).normalize();
 
-        let spacing = 0.2;
+        let spacing = 0.15;
         let spread = (multiplicity - 1) as f32 * spacing;
 
+        // Orient the bond to be facing the camera
+        // Split the bonds in half to handle the wireframe render type cleanly
         for i in 0..multiplicity {
             let offset = view_right * (i as f32 * spacing - spread / 2.0);
+
             self.shapes.push(Shape::Cylinder {
                 start: start_pos + offset,
+                end: midpoint + offset,
+                color: start_color,
+                radius: bond_radius,
+            });
+
+            self.shapes.push(Shape::Cylinder {
+                start: midpoint + offset,
                 end: end_pos + offset,
-                color: Vec3::new(0.67, 0.67, 0.67),
-                radius: 0.045,
+                color: end_color,
+                radius: bond_radius,
             });
         }
     }
 
-    fn atom_to_sphere(
-        &self,
-        atom: &Atom,
-        bond_multiplicity: usize,
-        max_radius: f32,
-        use_waal_radius: bool,
-    ) -> Shape {
-        let info = &self.element_db[&atom.element];
+    fn wireframe_tesselate(&mut self, structure: &Structure, camera_front: Vec3, wireframe: bool) {
+        self.shapes.clear();
 
-        let radius = if use_waal_radius {
-            if info.waal_radius == -1 {
-                1.0
-            } else {
-                info.waal_radius as f32
-            }
-        } else {
-            // Choose the closest defined covalent radius
-            *info
-                .covalent_radius
-                .iter()
-                .take(bond_multiplicity)
-                .rev()
-                .find(|v| **v != -1)
-                .unwrap() as f32
-        };
-
-        Shape::Sphere {
-            origin: atom.position,
-            color: Vec3::from_slice(&info.color),
-            radius: radius / max_radius,
-        }
-    }
-
-    // TODO: fix this!
-    pub fn tesselate(&mut self, structure: &Structure, camera_front: Vec3, view: &RenderStyle) {
-        let default_sphere = Shape::Sphere {
-            origin: Vec3::ZERO,
-            color: Vec3::ZERO,
-            radius: 0.0,
-        };
-        self.shapes = vec![default_sphere; structure.num_atoms()];
-        self.num_spheres = structure.num_atoms();
-
-        let max_covalent_radii = *self
-            .element_db
-            .values()
-            .flat_map(|e| e.covalent_radius.iter())
-            .filter(|&&r| r != -1)
-            .max()
-            .unwrap_or(&0) as f32;
+        let mut sphere_set: HashSet<Shape> = HashSet::new();
+        let bond_color = Vec3::new(0.67, 0.67, 0.67);
+        let radius_scale = 0.5;
 
         for (_, ligand) in &structure.ligands {
             for bond in &ligand.bonds {
-                let (src_atom, src_idx) = ligand.get_atom(&bond.src_index, &bond.src_id);
-                let (dst_atom, dst_idx) = ligand.get_atom(&bond.dst_index, &bond.dst_id);
-                let (src_atom, src_idx) = (src_atom.unwrap(), src_idx.unwrap());
-                let (dst_atom, dst_idx) = (dst_atom.unwrap(), dst_idx.unwrap());
+                let src_atom = ligand.get_atom(&bond.src_index, &bond.src_id);
+                let dst_atom = ligand.get_atom(&bond.dst_index, &bond.dst_id);
 
-                let src_sphere = self.atom_to_sphere(
-                    &src_atom,
+                let src_color = Vec3::from_slice(&self.element_db[&src_atom.element].color);
+                let dst_color = Vec3::from_slice(&self.element_db[&dst_atom.element].color);
+
+                let src_sphere = Shape::Sphere {
+                    origin: src_atom.position,
+                    color: src_color,
+                    radius: self.element_db[&src_atom.element].covalent_radius * radius_scale,
+                };
+
+                let dst_sphere = Shape::Sphere {
+                    origin: dst_atom.position,
+                    color: dst_color,
+                    radius: self.element_db[&dst_atom.element].covalent_radius * radius_scale,
+                };
+
+                // Position the bonds spread out horizontally relative to the screen
+                // The bonds are centered in between the two atoms
+                self.add_bond(
+                    src_atom.position,
+                    dst_atom.position,
+                    if wireframe { src_color } else { bond_color },
+                    if wireframe { dst_color } else { bond_color },
+                    camera_front,
                     bond.multiplicity,
-                    max_covalent_radii,
-                    *view == RenderStyle::SpacingFilling,
-                );
-                let dst_sphere = self.atom_to_sphere(
-                    &dst_atom,
-                    bond.multiplicity,
-                    max_covalent_radii,
-                    *view == RenderStyle::SpacingFilling,
                 );
 
-                // Update the bounding box
                 self.update_bounds(src_sphere.bounds());
                 self.update_bounds(dst_sphere.bounds());
 
-                // Update the radius of the bonded atoms
-                self.shapes[src_idx] = src_sphere;
-                self.shapes[dst_idx] = dst_sphere;
-
-                // Only need to render bonds in the ball and stick model
-                if *view != RenderStyle::SpacingFilling {
-                    // Position the bonds spread out horizontally relative to the screen
-                    // The bonds are centered in between the two atoms
-                    self.add_bond(
-                        src_atom.position,
-                        dst_atom.position,
-                        camera_front,
-                        bond.multiplicity,
-                    );
+                if !wireframe {
+                    sphere_set.insert(src_sphere);
+                    sphere_set.insert(dst_sphere);
                 }
             }
         }
+
+        self.num_spheres = sphere_set.len();
+        let mut new_spheres: Vec<Shape> = sphere_set.iter().cloned().collect();
+        new_spheres.extend(self.shapes.drain(..));
+        self.shapes = new_spheres;
+    }
+
+    fn space_filling_tesselate(&mut self, structure: &Structure) {
+        self.shapes.clear();
+
+        for (_, ligand) in &structure.ligands {
+            for (_, atom) in &ligand.atoms {
+                let shape = Shape::Sphere {
+                    origin: atom.position,
+                    color: Vec3::from_slice(&self.element_db[&atom.element].color),
+                    radius: self.element_db[&atom.element].waal_radius,
+                };
+                self.update_bounds(shape.bounds());
+                self.shapes.push(shape);
+            }
+        }
+
+        self.num_spheres = self.shapes.len();
+    }
+
+    pub fn tesselate(&mut self, structure: &Structure, camera_front: Vec3, view: &RenderStyle) {
+        match view {
+            RenderStyle::BallAndStick | RenderStyle::Wireframe => {
+                self.wireframe_tesselate(structure, camera_front, view == &RenderStyle::Wireframe)
+            }
+            RenderStyle::SpaceFilling => self.space_filling_tesselate(structure),
+        };
     }
 }

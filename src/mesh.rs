@@ -1,6 +1,8 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Quat, Vec3};
 use std::f32::consts::PI;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::ops::Range;
 
 #[derive(Clone)]
@@ -41,6 +43,30 @@ impl Shape {
                 *start -= offset;
                 *end -= offset;
             }
+        }
+    }
+}
+
+impl Eq for Shape {}
+
+impl PartialEq for Shape {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (&Shape::Sphere { origin: a, .. }, &Shape::Sphere { origin: b, .. }) => a == b,
+            _ => todo!("Implement PartialEq for Cylinder!"),
+        }
+    }
+}
+
+impl Hash for Shape {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match *self {
+            Shape::Sphere { origin, .. } => {
+                origin.x.to_bits().hash(state);
+                origin.y.to_bits().hash(state);
+                origin.z.to_bits().hash(state);
+            }
+            _ => todo!("Implement Hash for Cylinder!"),
         }
     }
 }
