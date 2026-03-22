@@ -15,21 +15,21 @@ use winit::{
 
 use crate::loader::{FileLoader, MMCIFLoader, SDFLoader};
 use crate::renderer::Renderer;
-use crate::tesselate::{RenderStyle, TesselateOutput, Tesselator};
+use crate::tessellate::{RenderStyle, TessellateOutput, Tessellator};
 use crate::ui::UIState;
-use crate::{camera::Action, tesselate::Structure};
+use crate::{camera::Action, tessellate::Structure};
 
 enum Message {
     LoadFileRequest(PathBuf),
     TessRequest((RenderStyle, Vec3)),
-    TessResponse(TesselateOutput),
+    TessResponse(TessellateOutput),
     ErrResponse(String),
 }
 
-// Parse files and tesselate structures on a separate thread, as to not block the rendering thread.
+// Parse files and tessellate structures on a separate thread, as to not block the rendering thread.
 fn run_loading_thread(rx_loader: Receiver<Message>, tx_app: Sender<Message>) {
     let mut loaders: HashMap<String, Box<dyn FileLoader>> = HashMap::new();
-    let mut tesselator = Tesselator::new().unwrap();
+    let mut tessellator = Tessellator::new().unwrap();
     let mut structure = Structure::default();
 
     let mut handle_message = || -> Result<(), String> {
@@ -53,7 +53,7 @@ fn run_loading_thread(rx_loader: Receiver<Message>, tx_app: Sender<Message>) {
             }
 
             Message::TessRequest((view, front)) => {
-                let structure = tesselator.tesselate(&structure, front, &view);
+                let structure = tessellator.tessellate(&structure, front, &view);
                 let _ = tx_app.send(Message::TessResponse(structure));
             }
 

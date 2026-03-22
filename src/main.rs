@@ -7,7 +7,7 @@ mod loader;
 mod mesh;
 mod renderer;
 mod shader;
-mod tesselate;
+mod tessellate;
 mod ui;
 
 fn main() {

@@ -2,7 +2,7 @@ use egui_wgpu::{RendererOptions, ScreenDescriptor};
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 use winit::{event::WindowEvent, window::Window};
 
-use crate::tesselate::RenderStyle;
+use crate::tessellate::RenderStyle;
 
 pub struct UIState {
     pub file_path: String,

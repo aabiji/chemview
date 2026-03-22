@@ -123,7 +123,7 @@ impl Vertex {
     fn from(pos: Vec3, normal: Vec3) -> Vertex {
         Vertex {
             position: [pos[0], pos[1], pos[2], 1.0],
-            normal: [normal[0], normal[1], normal[2], 1.0],
+            normal: [normal[0], normal[1], normal[2], 0.0],
         }
     }
 }
@@ -132,8 +132,8 @@ impl Vertex {
 // Stacks go medially while sectors go laterally Creating a sphere shape from
 // a bunch of sectors (subdivided into 2 triangles) arranged spherically.
 fn generate_sphere_mesh(
-    stack_count: usize,
     sector_count: usize,
+    stack_count: usize,
     radius: f32,
 ) -> (Vec<Vertex>, Vec<u32>) {
     let mut vertices: Vec<Vertex> = Vec::new();
@@ -235,14 +235,9 @@ fn generate_cylinder_mesh(
 
 // Create a vertex buffer and an index buffer that combines the vertices and
 // indices for sphere and cylinders, demarkated by index ranges
-pub fn create_shape_mesh_buffers(
-    stack_count: usize,
-    sector_count: usize,
-    radius: f32,
-    height: f32,
-) -> (Vec<Vertex>, Vec<u32>, Range<u32>, Range<u32>) {
-    let (v1, i1) = generate_sphere_mesh(stack_count, sector_count, radius);
-    let (v2, i2) = generate_cylinder_mesh(sector_count, radius, height);
+pub fn create_shape_mesh_buffers() -> (Vec<Vertex>, Vec<u32>, Range<u32>, Range<u32>) {
+    let (v1, i1) = generate_sphere_mesh(32, 32, 1.0);
+    let (v2, i2) = generate_cylinder_mesh(32, 1.0, 1.0);
 
     // Offset the indices for the cylinder vertices
     let sphere_vertex_count = v1.len() as u32;

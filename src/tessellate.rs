@@ -75,20 +75,20 @@ impl Display for RenderStyle {
 }
 
 #[derive(Default)]
-pub struct TesselateOutput {
+pub struct TessellateOutput {
     pub shapes: Vec<Shape>,
     pub num_spheres: usize,
     pub bounding_min: Vec3,
     pub bounding_max: Vec3,
 }
 
-pub struct Tesselator {
+pub struct Tessellator {
     element_db: HashMap<String, ElementInfo>,
     ccd: MMCIFLoader,
 }
 
-impl Tesselator {
-    pub fn new() -> Result<Tesselator, String> {
+impl Tessellator {
+    pub fn new() -> Result<Tessellator, String> {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("data/mmcif/chemical-componnet-dictionary.cif");
         let mut ccd = MMCIFLoader::default();
@@ -99,7 +99,7 @@ impl Tesselator {
         let contents = std::fs::read_to_string(info_path).map_err(|err| err.to_string())?;
         let element_db = serde_json::from_str(&contents).map_err(|err| err.to_string())?;
 
-        Ok(Tesselator { element_db, ccd })
+        Ok(Tessellator { element_db, ccd })
     }
 
     fn add_bond(
@@ -145,8 +145,8 @@ impl Tesselator {
         structure: &Structure,
         camera_front: Vec3,
         wireframe: bool,
-    ) -> TesselateOutput {
-        let mut output = TesselateOutput::default();
+    ) -> TessellateOutput {
+        let mut output = TessellateOutput::default();
 
         let mut sphere_set: HashSet<Shape> = HashSet::new();
         let mut cylinders: Vec<Shape> = Vec::new();
@@ -209,8 +209,8 @@ impl Tesselator {
         output
     }
 
-    fn space_filling(&mut self, structure: &Structure) -> TesselateOutput {
-        let mut output = TesselateOutput::default();
+    fn space_filling(&mut self, structure: &Structure) -> TessellateOutput {
+        let mut output = TessellateOutput::default();
 
         for (_, ligand) in &structure.ligands {
             for (_, atom) in &ligand.atoms {
@@ -230,12 +230,12 @@ impl Tesselator {
         output
     }
 
-    pub fn tesselate(
+    pub fn tessellate(
         &mut self,
         structure: &Structure,
         camera_front: Vec3,
         view: &RenderStyle,
-    ) -> TesselateOutput {
+    ) -> TessellateOutput {
         match view {
             RenderStyle::BallAndStick | RenderStyle::Wireframe => {
                 self.wireframe(structure, camera_front, view == &RenderStyle::Wireframe)

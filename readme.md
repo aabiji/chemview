@@ -69,7 +69,7 @@ Molecule visualizer built in Rust and wgpu
 ```
 - Visualization pipeline:
   1. Parse files (SDF, mmCIF) into `Structure`
-  2. Tesselate `Structure` into `Shape`s
+  2. Tessellate `Structure` into `Shape`s
   3. Convert `Shape`s to mesh data for rendering
 
 
@@ -133,7 +133,8 @@ Part 2 -> Render proteins:
 - [ ] Render proteins
   - [x] Wirefram diagram
   - [x] Space filling diagram
-
+  - [ ] Include a light behind the origin
+  - [ ] Draw [capsules](https://gamedev.stackexchange.com/questions/162426/how-to-draw-a-3d-capsule) instead of open ended cylinders
   - [x] Perform bond inference to establish bonds between every single atom in the chain
   - [ ] Add dotted lines for hydrogen bonds and disulfide bonds
   - [ ] Implement frustrum culling: don't render objects outside of the camera's view

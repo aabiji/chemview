@@ -20,7 +20,7 @@ use winit::{dpi::PhysicalSize, window::Window};
 use crate::camera::CameraController;
 use crate::mesh::{self, InstanceData, Shape, Vertex};
 use crate::shader::{self, ShaderVar};
-use crate::tesselate::TesselateOutput;
+use crate::tessellate::TessellateOutput;
 use crate::ui::{DebugUI, UIState};
 
 // The maximum size in bytes of a storage buffer will be 10 MB
@@ -80,7 +80,7 @@ impl Renderer {
         });
 
         let (vertices, indices, sphere_index_range, cylinder_index_range) =
-            mesh::create_shape_mesh_buffers(32, 32, 1.0, 1.0);
+            mesh::create_shape_mesh_buffers();
 
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("Vertex buffer"),
@@ -318,7 +318,7 @@ impl Renderer {
             .write_buffer(&self.buffers[3], 0, bytemuck::cast_slice(&position));
     }
 
-    pub fn set_mesh_data(&mut self, t: &TesselateOutput) {
+    pub fn set_mesh_data(&mut self, t: &TessellateOutput) {
         let target_pos = Vec3::new(0.0, 0.0, 0.0);
         let size = t.bounding_max - t.bounding_min;
         let offset = (t.bounding_min + size / 2.0) - target_pos;

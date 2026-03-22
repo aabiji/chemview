@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 
-use crate::tesselate::{Atom, Bond, Ligand, Structure};
+use crate::tessellate::{Atom, Bond, Ligand, Structure};
 
 pub trait FileLoader: Send {
     fn parse_file(&mut self, path: &Path) -> Result<Structure, String>;
