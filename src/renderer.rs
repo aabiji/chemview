@@ -18,14 +18,10 @@ use wgpu::{
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::camera::CameraController;
-use crate::ui::DebugUI;
-use crate::ui::UIState;
-use crate::{mesh, shader};
-use crate::{mesh::Shape, shader::ShaderVar};
-use crate::{
-    mesh::{InstanceData, Vertex},
-    tesselate::Tesselator,
-};
+use crate::mesh::{self, InstanceData, Shape, Vertex};
+use crate::shader::{self, ShaderVar};
+use crate::tesselate::TesselateOutput;
+use crate::ui::{DebugUI, UIState};
 
 // The maximum size in bytes of a storage buffer will be 10 MB
 const STORAGE_BUFFER_SIZE: usize = 10 * 1024 * 1024;
@@ -322,7 +318,7 @@ impl Renderer {
             .write_buffer(&self.buffers[3], 0, bytemuck::cast_slice(&position));
     }
 
-    pub fn set_mesh_data(&mut self, t: &Tesselator) {
+    pub fn set_mesh_data(&mut self, t: &TesselateOutput) {
         let target_pos = Vec3::new(0.0, 0.0, 0.0);
         let size = t.bounding_max - t.bounding_min;
         let offset = (t.bounding_min + size / 2.0) - target_pos;

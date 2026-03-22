@@ -41,7 +41,7 @@ Molecule visualizer built in Rust and wgpu
   - *Random coils*: Organized but not repeating amino acid structures between alpha helixes and beta sheets.
     Represented using lines ![](https://upload.wikimedia.org/wikipedia/commons/3/30/Insulin_1AI0_animation.gif).
 
-- Tiertiary
+- Tertiary
   - The different interactions that hold a ![polypeptide chain stable](https://chem.libretexts.org/@api/deki/files/432385/clipboard_eb73f08683beb5308f9ebeb05bc9bd823.png?revision=1)
     in 3D space include disulfide bonds, salt bridge, coordinate (covalent) bonds, hydrogen bonding, hydrophobic interactions, etc.
 
@@ -122,22 +122,19 @@ Part 1.5 -> Improve UX:
 - [x] Add a ui to manipulate the compound in focus
 
 Part 2 -> Render proteins:
-- [ ] Parse mmCIF files
+- [x] Parse mmCIF files
   - [x] Basic mmCIF file parsing into structured types
   - [x] mmap the file and parse by streaming the content
   - [x] Organize the data into Chains and Residues
-  - [ ] Perform bond inference to establish bonds between every single atom in the chain
-
-  - [ ] Render those parsed atoms and bonds
-    - [ ] Loading should be done on a seperate thread. Updating the compound's view type should be
-          done by creating shape buffers for all view types, then switching them out during runtime.
-    - [ ] The renderer should filter out H, since it clutters the view
-
   - [x] Abstract away the file format used. Use an interface that loads the file, then the file to output a mesh,
         use that mesh data (not tied to any semantic meaning) to do instance rendering
+  - [x] Compounds should be loaded on a separate thread
+
+- [ ] Render proteins
   - [x] Wirefram diagram
   - [x] Space filling diagram
 
+  - [x] Perform bond inference to establish bonds between every single atom in the chain
   - [ ] Add dotted lines for hydrogen bonds and disulfide bonds
   - [ ] Implement frustrum culling: don't render objects outside of the camera's view
   - [ ] Level of detail: switch between different representations based off of the zoom level (for massive molecules)

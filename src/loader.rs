@@ -9,7 +9,7 @@ use std::path::Path;
 
 use crate::tesselate::{Atom, Bond, Ligand, Structure};
 
-pub trait FileLoader {
+pub trait FileLoader: Send {
     fn parse_file(&mut self, path: &Path) -> Result<Structure, String>;
 }
 
@@ -101,17 +101,17 @@ impl Token {
         Token::Value(data.to_string())
     }
 
-    fn string(&self) -> Result<String, &'static str> {
+    fn string(&self) -> Result<String, String> {
         match self {
             Token::Value(s) => Ok(s.to_string()),
-            _ => Err("Unexpected token"),
+            _ => Err("Unexpected token".to_string()),
         }
     }
 
-    fn f32(&self) -> Result<f32, &'static str> {
+    fn f32(&self) -> Result<f32, String> {
         match self {
-            Token::Value(s) => s.parse::<f32>().map_err(|_| "Invalid number"),
-            _ => Err("Unexpected token"),
+            Token::Value(s) => s.parse::<f32>().map_err(|_| "Invalid number".to_string()),
+            _ => Err("Unexpected token".to_string()),
         }
     }
 }
@@ -123,6 +123,7 @@ struct Table {
     num_rows: usize,
 }
 
+#[derive(Default, Debug)]
 struct DataBlock {
     tables: HashMap<String, Table>,
     start_offset: usize,
@@ -136,22 +137,54 @@ pub struct MMCIFLoader {
 }
 
 impl MMCIFLoader {
-    fn open_file(&mut self, path: &Path) -> Result<(), String> {
+    pub fn open_file(&mut self, path: &Path) -> Result<(), String> {
         let file = File::open(path).map_err(|e| e.to_string())?;
         self.mmap = Some(unsafe { MmapOptions::new().map(&file).map_err(|e| e.to_string())? });
-        self.find_datablocks();
+        self.scan_datablocks();
         Ok(())
     }
 
+    pub fn get_sequence_bonds(&mut self, data_block: &str) -> Result<Vec<Bond>, String> {
+        if self
+            .data_blocks
+            .get(data_block)
+            .ok_or_else(|| format!("{data_block} not found"))?
+            .tables
+            .is_empty()
+        {
+            self.parse_block(Some(data_block))?;
+        }
+        let t = self.get_table(Some(data_block), "chem_comp_bond")?;
+
+        (0..t.num_rows)
+            .map(|i| -> Result<Bond, String> {
+                Ok(Bond {
+                    src_index: None,
+                    dst_index: None,
+                    src_id: Some(t.columns["atom_id_1"][i].string()?),
+                    dst_id: Some(t.columns["atom_id_2"][i].string()?),
+                    multiplicity: match t.columns["value_order"][i].string()?.as_str() {
+                        "DOUB" => 2,
+                        "TRIP" => 3,
+                        "SING" => 1,
+                        value => return Err(format!("Unimplemented bond type {value}")),
+                    },
+                })
+            })
+            .collect()
+    }
+
     // First pass: scan the file for offsets to data blocks
-    fn find_datablocks(&mut self) {
+    fn scan_datablocks(&mut self) {
         let needle = "data_";
         let bytes: &[u8] = self.mmap.as_ref().unwrap();
 
-        let mut offsets: Vec<usize> = find_iter(bytes, needle.as_bytes()).collect();
+        let mut offsets: Vec<usize> = find_iter(bytes, needle.as_bytes())
+            .filter(|i| i - 0 == 0 || bytes[i - 1] == b'\n')
+            .collect();
         offsets.push(bytes.len());
 
-        for i in (0..offsets.len()).step_by(2) {
+        for i in 0..offsets.len() - 1 {
             let start = offsets[i] + needle.len();
             let end = offsets[i + 1];
 
@@ -225,7 +258,7 @@ impl MMCIFLoader {
         Token::Eof
     }
 
-    pub fn parse_block(&mut self, name: Option<&str>) -> Result<(), String> {
+    fn parse_block(&mut self, name: Option<&str>) -> Result<(), String> {
         let key = match name {
             Some(s) => s,
             // Parse the first data block by default
