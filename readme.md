@@ -133,9 +133,20 @@ Part 2 -> Render proteins:
 - [ ] Render proteins
   - [x] Wirefram diagram
   - [x] Space filling diagram
-  - [ ] Include a light behind the origin
-  - [ ] Draw [capsules](https://gamedev.stackexchange.com/questions/162426/how-to-draw-a-3d-capsule) instead of open ended cylinders
   - [x] Perform bond inference to establish bonds between every single atom in the chain
+  - [ ] Include a light behind the origin
+  - [ ] Work on the Structure tesselator
+    - [ ] Cache the meshes for different view types
+    - [ ] Add ligand and element filtering (filter H, filter H20)
+      - [ ] Implement filtering in a cleaner way -> shouldn't be done in tesselation and loading
+    - [ ] Parse chains and residues from the file if they exist
+    - [ ] Iterate over bonds for a specific residue instead during tessellation. Should bond iteration be abstracted?
+    - [ ] Refactor the meshing algorithms
+      - [ ] Understand how spheres and cylinder meshes were generated (in detail - reimplement myself)
+      - [ ] Generate [capsule](https://gamedev.stackexchange.com/questions/162426/how-to-draw-a-3d-capsule) mesh
+      - [ ] Generate a mesh of a curve that passes through a set of points
+  - [ ] Parts of the molecule shouldn't be going out of view as the camera moves backwards
+  - [ ] FPS falls apart on some of these larger proteins...why?
   - [ ] Add dotted lines for hydrogen bonds and disulfide bonds
   - [ ] Implement frustrum culling: don't render objects outside of the camera's view
   - [ ] Level of detail: switch between different representations based off of the zoom level (for massive molecules)

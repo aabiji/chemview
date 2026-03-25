@@ -3,11 +3,11 @@ use indexmap::IndexMap;
 use memchr::memchr;
 use memchr::memmem::find_iter;
 use memmap::{Mmap, MmapOptions};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::Path;
 
-use crate::tessellate::{Atom, Bond, Ligand, Structure};
+use crate::tessellate::{Atom, AtomKey, Bond, Structure};
 
 pub trait FileLoader: Send {
     fn parse_file(&mut self, path: &Path) -> Result<Structure, String>;
@@ -39,19 +39,21 @@ impl FileLoader for SDFLoader {
         let num_atoms = parse::<usize>(&count_fields, 0)?;
         let num_bonds = parse::<usize>(&count_fields, 1)?;
 
-        let mut ligand = Ligand::default();
+        let mut atoms: HashMap<AtomKey, Atom> = HashMap::new();
+        let mut bonds: Vec<Bond> = Vec::new();
 
         for i in 0..num_atoms {
             let line = parse::<String>(&lines, 4 + i)?;
             let fields = split(&line, ' ', true);
-            ligand.atoms.insert(
-                format!("{i}"),
+            atoms.insert(
+                AtomKey::from_index(i),
                 Atom {
                     position: Vec3::new(
                         parse::<f32>(&fields, 0)?,
                         parse::<f32>(&fields, 1)?,
                         parse::<f32>(&fields, 2)?,
                     ),
+                    have_position: true,
                     element: parse::<String>(&fields, 3)?,
                 },
             );
@@ -60,11 +62,9 @@ impl FileLoader for SDFLoader {
         for i in 0..num_bonds {
             let line = parse::<String>(&lines, 4 + num_atoms + i)?;
             let fields = split(&line, ' ', true);
-            ligand.bonds.push(Bond {
-                src_id: None,
-                dst_id: None,
-                src_index: Some(parse::<usize>(&fields, 0)? - 1),
-                dst_index: Some(parse::<usize>(&fields, 1)? - 1),
+            bonds.push(Bond {
+                src: AtomKey::from_index(parse::<usize>(&fields, 0)? - 1),
+                dst: AtomKey::from_index(parse::<usize>(&fields, 1)? - 1),
                 multiplicity: match parse::<usize>(&fields, 2)? {
                     n @ 1..=3 => n,
                     m => return Err(format!("Unreconized bond type: {m}")),
@@ -73,7 +73,8 @@ impl FileLoader for SDFLoader {
         }
 
         Ok(Structure {
-            ligands: HashMap::from([(String::from("Compound"), ligand)]),
+            atoms,
+            bonds,
             ..Default::default()
         })
     }
@@ -158,11 +159,10 @@ impl MMCIFLoader {
 
         (0..t.num_rows)
             .map(|i| -> Result<Bond, String> {
+                let id = t.columns["comp_id"][i].string()?;
                 Ok(Bond {
-                    src_index: None,
-                    dst_index: None,
-                    src_id: Some(t.columns["atom_id_1"][i].string()?),
-                    dst_id: Some(t.columns["atom_id_2"][i].string()?),
+                    src: AtomKey::from_ligand(id.clone(), t.columns["atom_id_1"][i].string()?),
+                    dst: AtomKey::from_ligand(id.clone(), t.columns["atom_id_2"][i].string()?),
                     multiplicity: match t.columns["value_order"][i].string()?.as_str() {
                         "DOUB" => 2,
                         "TRIP" => 3,
@@ -359,52 +359,98 @@ impl MMCIFLoader {
 impl FileLoader for MMCIFLoader {
     fn parse_file(&mut self, path: &Path) -> Result<Structure, String> {
         self.open_file(path)?;
-
         self.parse_block(None)?;
+
         let t1 = self.get_table(None, "chem_comp_bond")?;
         let t2 = self.get_table(None, "chem_comp_atom")?;
+        let t3 = self.get_table(None, "atom_site")?;
 
-        let mut ligands: HashMap<String, Ligand> = HashMap::new();
+        let mut atoms: HashMap<AtomKey, Atom> = HashMap::new();
+        let mut bonds: Vec<Bond> = Vec::new();
 
         for i in 0..t1.num_rows {
             let id = t1.columns["comp_id"][i].string()?;
-            let ligand = ligands.entry(id).or_default();
-
-            ligand.bonds.push(Bond {
-                src_index: None,
-                dst_index: None,
-                src_id: Some(t1.columns["atom_id_1"][i].string()?),
-                dst_id: Some(t1.columns["atom_id_2"][i].string()?),
-                multiplicity: match t1.columns["value_order"][i].string()?.as_str() {
-                    "DOUB" => 2,
-                    "TRIP" => 3,
-                    "SING" => 1,
+            bonds.push(Bond {
+                src: AtomKey::from_ligand(id.clone(), t1.columns["atom_id_1"][i].string()?),
+                dst: AtomKey::from_ligand(id.clone(), t1.columns["atom_id_2"][i].string()?),
+                multiplicity: match t1.columns["value_order"][i]
+                    .string()?
+                    .to_lowercase()
+                    .as_str()
+                {
+                    "doub" => 2,
+                    "trip" => 3,
+                    "sing" => 1,
                     value => return Err(format!("Unimplemented bond type {value}")),
                 },
             });
         }
 
         for i in 0..t2.num_rows {
-            let id = t2.columns["comp_id"][i].string()?;
-            let ligand = ligands.entry(id).or_default();
+            let element = t2.columns["type_symbol"][i].string()?;
+            if element.to_lowercase() == "h" {
+                continue; // ignore hydrogen
+            }
 
-            ligand.atoms.insert(
-                t2.columns["atom_id"][i].string()?,
+            let id = t2.columns["comp_id"][i].string()?;
+            let have_position = t2.columns.contains_key("pdbx_model_Cartn_x_ideal");
+            atoms.insert(
+                AtomKey::from_ligand(id, t2.columns["atom_id"][i].string()?),
                 Atom {
                     // TODO: what about pdbx_component_atom_id
                     // TODO: what about pdbx_component_comp_id
-                    element: t2.columns["type_symbol"][i].string()?,
-                    position: glam::Vec3::new(
-                        t2.columns["pdbx_model_Cartn_x_ideal"][i].f32()?,
-                        t2.columns["pdbx_model_Cartn_y_ideal"][i].f32()?,
-                        t2.columns["pdbx_model_Cartn_z_ideal"][i].f32()?,
-                    ),
+                    element,
+                    have_position,
+                    position: if have_position {
+                        glam::Vec3::new(
+                            t2.columns["pdbx_model_Cartn_x_ideal"][i].f32()?,
+                            t2.columns["pdbx_model_Cartn_y_ideal"][i].f32()?,
+                            t2.columns["pdbx_model_Cartn_z_ideal"][i].f32()?,
+                        )
+                    } else {
+                        Vec3::ZERO
+                    },
+                },
+            );
+        }
+
+        let mut residues: HashSet<String> = HashSet::new();
+
+        for i in 0..t3.num_rows {
+            let element = t3.columns["type_symbol"][i].string()?;
+            if element.to_lowercase() == "h" {
+                continue; // ignore hydrogen
+            }
+
+            let residue = t3.columns["comp_id"][i].string()?;
+            let chain_id = t3.columns["label_asym_id"][i].string()?;
+            let sequence_id = t3.columns["label_seq_id"][i].string()?;
+            let atom_id = t3.columns["label_atom_id"][i].string()?;
+            let have_position = t3.columns.contains_key("Cartn_x");
+
+            residues.insert(residue.clone());
+
+            atoms.insert(
+                AtomKey::from_residue(residue, chain_id, sequence_id, atom_id),
+                Atom {
+                    element,
+                    have_position,
+                    position: if have_position {
+                        glam::Vec3::new(
+                            t3.columns["Cartn_x"][i].f32()?,
+                            t3.columns["Cartn_y"][i].f32()?,
+                            t3.columns["Cartn_z"][i].f32()?,
+                        )
+                    } else {
+                        Vec3::ZERO
+                    },
                 },
             );
         }
 
         Ok(Structure {
-            ligands,
+            atoms,
+            bonds,
             ..Default::default()
         })
     }

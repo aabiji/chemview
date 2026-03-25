@@ -21,6 +21,7 @@ use crate::{camera::Action, tessellate::Structure};
 
 enum Message {
     LoadFileRequest(PathBuf),
+    LoadSuccess,
     TessRequest((RenderStyle, Vec3)),
     TessResponse(TessellateOutput),
     ErrResponse(String),
@@ -50,6 +51,7 @@ fn run_loading_thread(rx_loader: Receiver<Message>, tx_app: Sender<Message>) {
                 }
 
                 structure = loaders.get_mut(extension).unwrap().parse_file(&path)?;
+                let _ = tx_app.send(Message::LoadSuccess);
             }
 
             Message::TessRequest((view, front)) => {
@@ -86,7 +88,7 @@ impl App {
 
         Self {
             ui_state: UIState {
-                file_path: String::from("/home/aabiji/dev/chemview/data/mmcif/T44.cif"),
+                file_path: String::from("/home/aabiji/dev/chemview/data/mmcif/28VP.cif"),
                 path_changed: false,
                 error_message: None,
                 view_type: RenderStyle::BallAndStick,
@@ -106,7 +108,6 @@ impl App {
             let path = PathBuf::from(&self.ui_state.file_path);
             let _ = self.tx_loader.send(Message::LoadFileRequest(path));
             self.ui_state.path_changed = false;
-            self.ui_state.view_changed = true;
         }
 
         if self.ui_state.view_changed {
@@ -119,11 +120,11 @@ impl App {
 
         // Listen for responses
         if let Ok(msg) = self.rx_app.try_recv() {
-            self.ui_state.error_message = None;
-
             match msg {
+                Message::LoadSuccess => self.ui_state.view_changed = true,
                 Message::TessResponse(output) => {
                     self.renderer.as_mut().unwrap().set_mesh_data(&output);
+                    self.ui_state.error_message = None;
                 }
                 Message::ErrResponse(e) => self.ui_state.error_message = Some(e),
                 _ => {}
