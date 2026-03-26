@@ -7,76 +7,35 @@ use std::path::PathBuf;
 use crate::loader::MMCIFLoader;
 use crate::mesh::Shape;
 
-#[derive(Debug, Eq, Hash, PartialEq)]
-pub struct AtomKey {
-    pub atom_id: Option<String>,
-    pub in_ligand: bool,
-    // for mmCIF files
-    pub chain_id: Option<String>,
-    pub sequence_id: Option<String>,
-    pub residue: Option<String>,
-    // for SDF files
-    pub index: Option<usize>,
-}
-
-impl AtomKey {
-    pub fn from_index(index: usize) -> Self {
-        Self {
-            atom_id: None,
-            in_ligand: true,
-            chain_id: None,
-            sequence_id: None,
-            residue: None,
-            index: Some(index),
-        }
-    }
-
-    pub fn from_ligand(ligand_id: String, atom_id: String) -> Self {
-        Self {
-            atom_id: Some(atom_id),
-            in_ligand: true,
-            chain_id: Some(ligand_id),
-            sequence_id: None,
-            residue: None,
-            index: None,
-        }
-    }
-
-    pub fn from_residue(
-        residue: String,
-        chain_id: String,
-        sequence_id: String,
-        atom_id: String,
-    ) -> Self {
-        Self {
-            atom_id: Some(atom_id),
-            residue: Some(residue),
-            in_ligand: false,
-            chain_id: Some(chain_id),
-            sequence_id: Some(sequence_id),
-            index: None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Bond {
-    pub src: AtomKey,
-    pub dst: AtomKey,
-    pub multiplicity: usize,
-}
-
-#[derive(Debug)]
 pub struct Atom {
-    pub element: String,
     pub position: Vec3,
-    pub have_position: bool,
+    pub element: String,
+}
+
+#[repr(i32)]
+pub enum BondType {
+    Single = 1,
+    Double = 2,
+    Triple = 3,
+}
+
+pub struct Bond {
+    pub src: usize,
+    pub dst: usize,
+    pub bond_type: BondType,
+}
+
+#[derive(Default)]
+pub struct Molecule {
+    pub name: String,
+    pub atoms: Vec<Atom>,
+    pub bonds: Vec<Bond>,
 }
 
 #[derive(Default)]
 pub struct Structure {
-    pub bonds: Vec<Bond>,
-    pub atoms: HashMap<AtomKey, Atom>,
+    pub ligands: Vec<Molecule>,
+    pub chains: Vec<Vec<Molecule>>,
 }
 
 #[derive(Deserialize)]
@@ -123,8 +82,6 @@ impl Tessellator {
         let mut ccd = MMCIFLoader::default();
         ccd.open_file(&path)?;
 
-        dbg!(&ccd.get_sequence_bonds("PRO"));
-
         let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let info_path = base.join("data/element_data.json");
         let contents = std::fs::read_to_string(info_path).map_err(|err| err.to_string())?;
@@ -140,13 +97,18 @@ impl Tessellator {
         start_color: Vec3,
         end_color: Vec3,
         camera_front: Vec3,
-        multiplicity: usize,
+        bond_type: &BondType,
     ) {
         let bond_radius = 0.04;
         let bond_direction = (end_pos - start_pos).normalize();
         let midpoint = (start_pos + end_pos) / 2.0;
         let view_right = bond_direction.cross(camera_front).normalize();
 
+        let multiplicity = match bond_type {
+            BondType::Single => 1,
+            BondType::Double => 2,
+            BondType::Triple => 3,
+        };
         let spacing = 0.15;
         let spread = (multiplicity - 1) as f32 * spacing;
 
@@ -185,85 +147,92 @@ impl Tessellator {
         let bond_color = Vec3::new(0.67, 0.67, 0.67);
         let radius_scale = 0.5;
 
-        for bond in &structure.bonds {
-            let src_atom = &structure.atoms[&bond.src];
-            let dst_atom = &structure.atoms[&bond.dst];
-            if !src_atom.have_position
-                || !dst_atom.have_position
-                || src_atom.element.to_lowercase() == "h"
-                || dst_atom.element.to_lowercase() == "h"
-            {
-                continue;
+        let mut process_bonds = |atoms: &Vec<Atom>, bonds: &Vec<Bond>| {
+            for bond in bonds {
+                let src_atom = &atoms[bond.src];
+                let dst_atom = &atoms[bond.dst];
+                let src_color = Vec3::from_slice(&self.element_db[&src_atom.element].color);
+                let dst_color = Vec3::from_slice(&self.element_db[&dst_atom.element].color);
+
+                let src_sphere = Shape::Sphere {
+                    origin: src_atom.position,
+                    color: src_color,
+                    radius: self.element_db[&src_atom.element].covalent_radius * radius_scale,
+                };
+
+                let dst_sphere = Shape::Sphere {
+                    origin: dst_atom.position,
+                    color: dst_color,
+                    radius: self.element_db[&dst_atom.element].covalent_radius * radius_scale,
+                };
+
+                // Position the bonds spread out horizontally relative to the screen
+                // The bonds are centered in between the two atoms
+                Self::add_bond(
+                    &mut cylinders,
+                    src_atom.position,
+                    dst_atom.position,
+                    if wireframe { src_color } else { bond_color },
+                    if wireframe { dst_color } else { bond_color },
+                    camera_front,
+                    &bond.bond_type,
+                );
+
+                output.bounding_min = output
+                    .bounding_min
+                    .min(src_sphere.bounds().0)
+                    .min(dst_sphere.bounds().0);
+                output.bounding_min = output
+                    .bounding_max
+                    .max(src_sphere.bounds().1)
+                    .max(dst_sphere.bounds().1);
+
+                if !wireframe {
+                    sphere_set.insert(src_sphere);
+                    sphere_set.insert(dst_sphere);
+                }
             }
+        };
 
-            let src_color = Vec3::from_slice(&self.element_db[&src_atom.element].color);
-            let dst_color = Vec3::from_slice(&self.element_db[&dst_atom.element].color);
-
-            let src_sphere = Shape::Sphere {
-                origin: src_atom.position,
-                color: src_color,
-                radius: self.element_db[&src_atom.element].covalent_radius * radius_scale,
-            };
-
-            let dst_sphere = Shape::Sphere {
-                origin: dst_atom.position,
-                color: dst_color,
-                radius: self.element_db[&dst_atom.element].covalent_radius * radius_scale,
-            };
-
-            // Position the bonds spread out horizontally relative to the screen
-            // The bonds are centered in between the two atoms
-            Self::add_bond(
-                &mut cylinders,
-                src_atom.position,
-                dst_atom.position,
-                if wireframe { src_color } else { bond_color },
-                if wireframe { dst_color } else { bond_color },
-                camera_front,
-                bond.multiplicity,
-            );
-
-            output.bounding_min = output
-                .bounding_min
-                .min(src_sphere.bounds().0)
-                .min(dst_sphere.bounds().0);
-            output.bounding_min = output
-                .bounding_max
-                .max(src_sphere.bounds().1)
-                .max(dst_sphere.bounds().1);
-
-            if !wireframe {
-                sphere_set.insert(src_sphere);
-                sphere_set.insert(dst_sphere);
+        for chain in &structure.chains {
+            for residue in chain {
+                process_bonds(&residue.atoms, &residue.bonds);
             }
+        }
+        for ligand in &structure.ligands {
+            process_bonds(&ligand.atoms, &ligand.bonds);
         }
 
         output.num_spheres = sphere_set.len();
         output.shapes = sphere_set.iter().cloned().collect();
         output.shapes.extend(cylinders.drain(..));
-
         output
     }
 
     fn space_filling(&mut self, structure: &Structure) -> TessellateOutput {
         let mut output = TessellateOutput::default();
 
-        for (_, atom) in &structure.atoms {
-            if !atom.have_position {
-                continue;
+        let mut process_atoms = |atoms: &Vec<Atom>| {
+            for atom in atoms {
+                let shape = Shape::Sphere {
+                    origin: atom.position,
+                    color: Vec3::from_slice(&self.element_db[&atom.element].color),
+                    radius: self.element_db[&atom.element].waal_radius,
+                };
+                output.bounding_min = output.bounding_min.min(shape.bounds().0);
+                output.bounding_max = output.bounding_max.max(shape.bounds().1);
+                output.shapes.push(shape);
             }
+        };
 
-            let shape = Shape::Sphere {
-                origin: atom.position,
-                color: Vec3::from_slice(&self.element_db[&atom.element].color),
-                radius: self.element_db[&atom.element].waal_radius,
-            };
-
-            output.bounding_min = output.bounding_min.min(shape.bounds().0);
-            output.bounding_max = output.bounding_max.max(shape.bounds().1);
-            output.shapes.push(shape);
+        for chain in &structure.chains {
+            for residue in chain {
+                process_atoms(&residue.atoms);
+            }
         }
-
+        for ligand in &structure.ligands {
+            process_atoms(&ligand.atoms);
+        }
         output.num_spheres = output.shapes.len();
         output
     }
