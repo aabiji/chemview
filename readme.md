@@ -85,7 +85,7 @@ Molecule visualizer built in Rust and wgpu
 - [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
 - [Secondary Structure and Loops](https://bio.libretexts.org/Bookshelves/Biochemistry/Fundamentals_of_Biochemistry_(Jakubowski_and_Flatt)/01%3A_Unit_I-_Structure_and_Catalysis/04%3A_The_Three-Dimensional_Structure_of_Proteins/4.02%3A_Secondary_Structure_and_Loops)
 
--- [Structures of Human Sequences](https://www.rcsb.org/search?q=rcsb_entity_source_organism.ncbi_scientific_name:Homo%20sapiens)
+- [Structures of Human Sequences](https://www.rcsb.org/search?q=rcsb_entity_source_organism.ncbi_scientific_name:Homo%20sapiens)
 - [Rendering techniques for proteins](https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2021.642172/full)
 
 ### Roadmap
@@ -166,6 +166,8 @@ Part 2 -> Render proteins:
       - ???
 
 Part 3 -> Wild ideas:
+- Make this an library that can be used by other crates??
+
 - Visualize a chemical reaction as it happens?
 
 - Search for compounds using `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/aspirin/SDF?record_type=3d`
