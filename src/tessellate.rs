@@ -7,35 +7,51 @@ use std::path::PathBuf;
 use crate::loader::MMCIFLoader;
 use crate::mesh::Shape;
 
+#[derive(Default, Debug)]
 pub struct Atom {
+    pub chain_id: String,
+    pub component_id: String,
+    pub atom_id: String,
+    pub is_ligand: bool,
     pub position: Vec3,
     pub element: String,
 }
 
 #[repr(i32)]
+#[derive(Default, Debug)]
 pub enum BondType {
+    #[default]
     Single = 1,
     Double = 2,
     Triple = 3,
 }
 
+#[derive(Default, Debug)]
 pub struct Bond {
     pub src: usize,
     pub dst: usize,
     pub bond_type: BondType,
 }
 
-#[derive(Default)]
+// Ligand or residue
+#[derive(Default, Debug)]
 pub struct Molecule {
     pub name: String,
-    pub atoms: Vec<Atom>,
-    pub bonds: Vec<Bond>,
+    pub is_ligand: bool,
+    pub atoms: Vec<usize>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
+pub struct Chain {
+    pub name: String,
+    pub molecules: Vec<Molecule>,
+}
+
+#[derive(Default, Debug)]
 pub struct Structure {
-    pub ligands: Vec<Molecule>,
-    pub chains: Vec<Vec<Molecule>>,
+    pub chains: Vec<Chain>,
+    pub atoms: Vec<Atom>,
+    pub bonds: Vec<Bond>,
 }
 
 #[derive(Deserialize)]
@@ -77,10 +93,13 @@ pub struct Tessellator {
 
 impl Tessellator {
     pub fn new() -> Result<Tessellator, String> {
+        /*
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("data/mmcif/chemical-component-dictionary.cif");
         let mut ccd = MMCIFLoader::default();
         ccd.open_file(&path)?;
+        */
+        let mut ccd = MMCIFLoader::default();
 
         let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let info_path = base.join("data/element_data.json");
@@ -195,12 +214,12 @@ impl Tessellator {
         };
 
         for chain in &structure.chains {
-            for residue in chain {
+            for residue in &chain.residues {
                 process_bonds(&residue.atoms, &residue.bonds);
             }
-        }
-        for ligand in &structure.ligands {
-            process_bonds(&ligand.atoms, &ligand.bonds);
+            for ligand in &chain.residues {
+                process_bonds(&ligand.atoms, &ligand.bonds);
+            }
         }
 
         output.num_spheres = sphere_set.len();
@@ -226,13 +245,14 @@ impl Tessellator {
         };
 
         for chain in &structure.chains {
-            for residue in chain {
+            for residue in &chain.residues {
                 process_atoms(&residue.atoms);
             }
+            for ligand in &chain.residues {
+                process_atoms(&ligand.atoms);
+            }
         }
-        for ligand in &structure.ligands {
-            process_atoms(&ligand.atoms);
-        }
+
         output.num_spheres = output.shapes.len();
         output
     }
