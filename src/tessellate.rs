@@ -10,15 +10,16 @@ use crate::mesh::Shape;
 #[derive(Default, Debug)]
 pub struct Atom {
     pub chain_id: String,
-    pub component_id: String,
+    pub sequence_id: String,
+    pub component_name: String,
     pub atom_id: String,
+    pub element: String,
     pub is_ligand: bool,
     pub position: Vec3,
-    pub element: String,
 }
 
 #[repr(i32)]
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 pub enum BondType {
     #[default]
     Single = 1,
@@ -166,59 +167,48 @@ impl Tessellator {
         let bond_color = Vec3::new(0.67, 0.67, 0.67);
         let radius_scale = 0.5;
 
-        let mut process_bonds = |atoms: &Vec<Atom>, bonds: &Vec<Bond>| {
-            for bond in bonds {
-                let src_atom = &atoms[bond.src];
-                let dst_atom = &atoms[bond.dst];
-                let src_color = Vec3::from_slice(&self.element_db[&src_atom.element].color);
-                let dst_color = Vec3::from_slice(&self.element_db[&dst_atom.element].color);
+        for bond in &structure.bonds {
+            let src_atom = &structure.atoms[bond.src];
+            let dst_atom = &structure.atoms[bond.dst];
+            let src_color = Vec3::from_slice(&self.element_db[&src_atom.element].color);
+            let dst_color = Vec3::from_slice(&self.element_db[&dst_atom.element].color);
 
-                let src_sphere = Shape::Sphere {
-                    origin: src_atom.position,
-                    color: src_color,
-                    radius: self.element_db[&src_atom.element].covalent_radius * radius_scale,
-                };
+            let src_sphere = Shape::Sphere {
+                origin: src_atom.position,
+                color: src_color,
+                radius: self.element_db[&src_atom.element].covalent_radius * radius_scale,
+            };
 
-                let dst_sphere = Shape::Sphere {
-                    origin: dst_atom.position,
-                    color: dst_color,
-                    radius: self.element_db[&dst_atom.element].covalent_radius * radius_scale,
-                };
+            let dst_sphere = Shape::Sphere {
+                origin: dst_atom.position,
+                color: dst_color,
+                radius: self.element_db[&dst_atom.element].covalent_radius * radius_scale,
+            };
 
-                // Position the bonds spread out horizontally relative to the screen
-                // The bonds are centered in between the two atoms
-                Self::add_bond(
-                    &mut cylinders,
-                    src_atom.position,
-                    dst_atom.position,
-                    if wireframe { src_color } else { bond_color },
-                    if wireframe { dst_color } else { bond_color },
-                    camera_front,
-                    &bond.bond_type,
-                );
+            // Position the bonds spread out horizontally relative to the screen
+            // The bonds are centered in between the two atoms
+            Self::add_bond(
+                &mut cylinders,
+                src_atom.position,
+                dst_atom.position,
+                if wireframe { src_color } else { bond_color },
+                if wireframe { dst_color } else { bond_color },
+                camera_front,
+                &bond.bond_type,
+            );
 
-                output.bounding_min = output
-                    .bounding_min
-                    .min(src_sphere.bounds().0)
-                    .min(dst_sphere.bounds().0);
-                output.bounding_min = output
-                    .bounding_max
-                    .max(src_sphere.bounds().1)
-                    .max(dst_sphere.bounds().1);
+            output.bounding_min = output
+                .bounding_min
+                .min(src_sphere.bounds().0)
+                .min(dst_sphere.bounds().0);
+            output.bounding_min = output
+                .bounding_max
+                .max(src_sphere.bounds().1)
+                .max(dst_sphere.bounds().1);
 
-                if !wireframe {
-                    sphere_set.insert(src_sphere);
-                    sphere_set.insert(dst_sphere);
-                }
-            }
-        };
-
-        for chain in &structure.chains {
-            for residue in &chain.residues {
-                process_bonds(&residue.atoms, &residue.bonds);
-            }
-            for ligand in &chain.residues {
-                process_bonds(&ligand.atoms, &ligand.bonds);
+            if !wireframe {
+                sphere_set.insert(src_sphere);
+                sphere_set.insert(dst_sphere);
             }
         }
 
@@ -231,26 +221,15 @@ impl Tessellator {
     fn space_filling(&mut self, structure: &Structure) -> TessellateOutput {
         let mut output = TessellateOutput::default();
 
-        let mut process_atoms = |atoms: &Vec<Atom>| {
-            for atom in atoms {
-                let shape = Shape::Sphere {
-                    origin: atom.position,
-                    color: Vec3::from_slice(&self.element_db[&atom.element].color),
-                    radius: self.element_db[&atom.element].waal_radius,
-                };
-                output.bounding_min = output.bounding_min.min(shape.bounds().0);
-                output.bounding_max = output.bounding_max.max(shape.bounds().1);
-                output.shapes.push(shape);
-            }
-        };
-
-        for chain in &structure.chains {
-            for residue in &chain.residues {
-                process_atoms(&residue.atoms);
-            }
-            for ligand in &chain.residues {
-                process_atoms(&ligand.atoms);
-            }
+        for atom in &structure.atoms {
+            let shape = Shape::Sphere {
+                origin: atom.position,
+                color: Vec3::from_slice(&self.element_db[&atom.element].color),
+                radius: self.element_db[&atom.element].waal_radius,
+            };
+            output.bounding_min = output.bounding_min.min(shape.bounds().0);
+            output.bounding_max = output.bounding_max.max(shape.bounds().1);
+            output.shapes.push(shape);
         }
 
         output.num_spheres = output.shapes.len();

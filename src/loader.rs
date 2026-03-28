@@ -46,6 +46,11 @@ impl FileLoader for SDFLoader {
             let line = parse::<String>(&lines, 4 + i)?;
             let fields = split(&line, ' ', true);
             atoms.push(Atom {
+                chain_id: String::new(),
+                sequence_id: String::new(),
+                component_name: String::new(),
+                atom_id: String::new(),
+                is_ligand: true,
                 position: Vec3::new(
                     parse::<f32>(&fields, 0)?,
                     parse::<f32>(&fields, 1)?,
@@ -71,14 +76,8 @@ impl FileLoader for SDFLoader {
         }
 
         Ok(Structure {
-            chains: vec![Chain {
-                ligands: vec![Molecule {
-                    atoms,
-                    bonds,
-                    name: String::new(),
-                }],
-                ..Default::default()
-            }],
+            atoms,
+            bonds,
             ..Default::default()
         })
     }
@@ -331,24 +330,130 @@ impl MMCIFLoader {
     }
 }
 
+#[derive(Debug)]
+struct ComponentInstance {
+    start: usize,
+    length: usize,
+    atoms: HashMap<String, usize>,
+}
+
 impl FileLoader for MMCIFLoader {
-    // NOTE: DOING MULTIPLE PASSES IS OK, a few extra milliseconds wouldn't hurt
-
-    /*
-    First pass: read atom_site into Vec<Atom>
-    Second pass: sort the atom vector by chain id and sequence id
-    Third pass: construct chain and molecule ranges from the sorted atoms, store ranges in hashmap?
-
-    chem_comp_bond stores bond info for every molecule instance in the file
-    need to iterate and specify indexes for every instance of the molecule
-    */
-
     fn parse_file(&mut self, path: &Path) -> Result<Structure, String> {
-        let mut structure: Structure = Structure::default();
-
         self.open_file(path)?;
         self.parse_block(None)?;
 
-        Ok(structure)
+        let mut atoms: Vec<Atom> = Vec::new();
+        let mut components: HashMap<String, Vec<ComponentInstance>> = HashMap::new();
+
+        // Parse atoms
+        if let Ok(t) = self.get_table(None, "chem_comp_atom") {
+            for i in 0..t.num_rows {
+                if !t.columns.contains_key("pdbx_model_Cartn_x_ideal") {
+                    break;
+                }
+                atoms.push(Atom {
+                    chain_id: String::new(),
+                    sequence_id: String::new(),
+                    component_name: t.columns["comp_id"][i].string()?,
+                    atom_id: t.columns["atom_id"][i].string()?,
+                    element: t.columns["type_symbol"][i].string()?,
+                    is_ligand: true,
+                    position: glam::Vec3::new(
+                        t.columns["pdbx_model_Cartn_x_ideal"][i].f32()?,
+                        t.columns["pdbx_model_Cartn_y_ideal"][i].f32()?,
+                        t.columns["pdbx_model_Cartn_z_ideal"][i].f32()?,
+                    ),
+                });
+            }
+        }
+
+        if let Ok(t) = self.get_table(None, "atom_site") {
+            for i in 0..t.num_rows {
+                atoms.push(Atom {
+                    chain_id: t.columns["label_asym_id"][i].string()?,
+                    sequence_id: t.columns["label_seq_id"][i].string()?,
+                    component_name: t.columns["label_comp_id"][i].string()?,
+                    atom_id: t.columns["label_atom_id"][i].string()?,
+                    element: t.columns["type_symbol"][i].string()?,
+                    is_ligand: t.columns["group_PDB"][i].string()? == "HETATM",
+                    position: glam::Vec3::new(
+                        t.columns["Cartn_x"][i].f32()?,
+                        t.columns["Cartn_y"][i].f32()?,
+                        t.columns["Cartn_z"][i].f32()?,
+                    ),
+                });
+            }
+        }
+
+        // Sort atoms by chain, sequence id and component name
+        atoms.sort_by(|a: &Atom, b: &Atom| {
+            a.chain_id
+                .cmp(&b.chain_id)
+                .then(a.sequence_id.cmp(&b.sequence_id))
+                .then(a.component_name.cmp(&b.component_name))
+        });
+
+        // Map each component to each of its instances, while
+        // mapping atom ids to indexes in the atom list
+        let mut prev_comp = String::new();
+        for (index, atom) in atoms.iter().enumerate() {
+            let n = atom.component_name.clone();
+
+            if n != prev_comp {
+                // new component...
+                let c = ComponentInstance {
+                    start: index,
+                    length: 0,
+                    atoms: HashMap::new(),
+                };
+                components.entry(n.clone()).or_default().push(c);
+            }
+
+            let current = components.entry(n.clone()).or_default().last_mut().unwrap();
+            current.atoms.insert(atom.atom_id.clone(), index);
+            current.length += 1;
+
+            prev_comp = n;
+        }
+
+        // Parse bonds
+        let mut bonds: Vec<Bond> = Vec::new();
+        if let Ok(t) = self.get_table(None, "chem_comp_bond") {
+            for i in 0..t.num_rows {
+                let component_id = t.columns["comp_id"][i].string()?;
+                let src_id = t.columns["atom_id_1"][i].string()?;
+                let dst_id = t.columns["atom_id_2"][i].string()?;
+                let bond_type = match t.columns["value_order"][i]
+                    .string()?
+                    .to_lowercase()
+                    .as_str()
+                {
+                    "sing" => BondType::Single,
+                    "doub" => BondType::Double,
+                    "trip" => BondType::Triple,
+                    x => return Err(format!("Unkonwn bond type {x}")),
+                };
+
+                for instance in &components[&component_id] {
+                    if !instance.atoms.contains_key(&src_id)
+                        || !instance.atoms.contains_key(&dst_id)
+                    {
+                        continue;
+                    }
+
+                    bonds.push(Bond {
+                        src: instance.atoms[&src_id],
+                        dst: instance.atoms[&dst_id],
+                        bond_type,
+                    });
+                }
+            }
+        }
+
+        Ok(Structure {
+            atoms,
+            bonds,
+            ..Default::default()
+        })
     }
 }
