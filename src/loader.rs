@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{Mat4, Vec3, Vec4};
 use indexmap::IndexMap;
 use memchr::memchr;
 use memchr::memmem::find_iter;
@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 
-use crate::tessellate::{Atom, Bond, BondType, Chain, Molecule, Structure};
+use crate::tessellate::{Atom, Bond, BondType, SecondaryStructure, SecondaryType, Structure};
 
 pub trait FileLoader: Send {
     fn parse_file(&mut self, path: &Path) -> Result<Structure, String>;
@@ -275,7 +275,7 @@ impl MMCIFLoader {
                     if !in_table {
                         let table = block.tables.entry(prev_block.clone()).or_default();
                         table.columns.get_mut(&prev_column).unwrap().push(token);
-                        table.num_rows += 1;
+                        table.num_rows = 1;
                         continue;
                     }
 
@@ -331,19 +331,28 @@ impl MMCIFLoader {
 }
 
 #[derive(Debug)]
-struct ComponentInstance {
-    start: usize,
-    length: usize,
-    atoms: HashMap<String, usize>,
+struct Assembly {
+    target_chains: Vec<String>,
+    transform: Mat4,
+    copies_per_chain: usize,
 }
 
+#[derive(Default, Debug)]
+struct Strand {
+    seq_offset: usize,
+    atoms: HashMap<String, usize>, // atom id to indexes
+}
+
+// (chain_id, seq_id) to strand
+type Component = HashMap<(String, String), Strand>;
+
 impl FileLoader for MMCIFLoader {
+    // TODO: parse secondary structures and refactor, refactor, refactor
     fn parse_file(&mut self, path: &Path) -> Result<Structure, String> {
         self.open_file(path)?;
         self.parse_block(None)?;
 
         let mut atoms: Vec<Atom> = Vec::new();
-        let mut components: HashMap<String, Vec<ComponentInstance>> = HashMap::new();
 
         // Parse atoms
         if let Ok(t) = self.get_table(None, "chem_comp_atom") {
@@ -387,33 +396,35 @@ impl FileLoader for MMCIFLoader {
 
         // Sort atoms by chain, sequence id and component name
         atoms.sort_by(|a: &Atom, b: &Atom| {
+            // Ensure that sequences are sorted in ascending order, not lexographic order
+            let s_a = a.sequence_id.parse::<i32>().unwrap_or(0);
+            let s_b = b.sequence_id.parse::<i32>().unwrap_or(0);
             a.chain_id
                 .cmp(&b.chain_id)
-                .then(a.sequence_id.cmp(&b.sequence_id))
+                .then(s_a.cmp(&s_b))
                 .then(a.component_name.cmp(&b.component_name))
         });
 
-        // Map each component to each of its instances, while
-        // mapping atom ids to indexes in the atom list
-        let mut prev_comp = String::new();
+        // Group atom indexes by component, then by chain id and sequence id
+        let mut components: HashMap<String, Component> = HashMap::new();
+        let mut prev_chain_id = String::new();
+        let mut prev_seq_id = String::new();
+
         for (index, atom) in atoms.iter().enumerate() {
-            let n = atom.component_name.clone();
+            let current = components
+                .entry(atom.component_name.clone())
+                .or_default()
+                .entry((atom.chain_id.clone(), atom.sequence_id.clone()))
+                .or_default();
 
-            if n != prev_comp {
-                // new component...
-                let c = ComponentInstance {
-                    start: index,
-                    length: 0,
-                    atoms: HashMap::new(),
-                };
-                components.entry(n.clone()).or_default().push(c);
+            // sequence changed
+            if atom.sequence_id.clone() != prev_seq_id || atom.chain_id.clone() != prev_chain_id {
+                current.seq_offset = index;
             }
-
-            let current = components.entry(n.clone()).or_default().last_mut().unwrap();
             current.atoms.insert(atom.atom_id.clone(), index);
-            current.length += 1;
 
-            prev_comp = n;
+            prev_seq_id = atom.sequence_id.clone();
+            prev_chain_id = atom.chain_id.clone();
         }
 
         // Parse bonds
@@ -434,13 +445,12 @@ impl FileLoader for MMCIFLoader {
                     x => return Err(format!("Unkonwn bond type {x}")),
                 };
 
-                for instance in &components[&component_id] {
+                for (_, instance) in &components[&component_id] {
                     if !instance.atoms.contains_key(&src_id)
                         || !instance.atoms.contains_key(&dst_id)
                     {
                         continue;
                     }
-
                     bonds.push(Bond {
                         src: instance.atoms[&src_id],
                         dst: instance.atoms[&dst_id],
@@ -450,9 +460,127 @@ impl FileLoader for MMCIFLoader {
             }
         }
 
+        if let Ok(t) = self.get_table(None, "pdbx_struct_sheet_hbond") {
+            for i in 0..t.num_rows {
+                let component1 = t.columns["range_1_label_comp_id"][i].string()?;
+                let chain1 = t.columns["range_1_label_asym_id"][i].string()?;
+                let seq1 = t.columns["range_1_label_seq_id"][i].string()?;
+                let atom1 = t.columns["range_1_label_atom_id"][i].string()?;
+
+                let component2 = t.columns["range_2_label_comp_id"][i].string()?;
+                let chain2 = t.columns["range_2_label_asym_id"][i].string()?;
+                let seq2 = t.columns["range_2_label_seq_id"][i].string()?;
+                let atom2 = t.columns["range_2_label_atom_id"][i].string()?;
+
+                bonds.push(Bond {
+                    src: components[&component1][&(chain1, seq1)].atoms[&atom1],
+                    dst: components[&component2][&(chain2, seq2)].atoms[&atom2],
+                    bond_type: BondType::HBond,
+                });
+            }
+        }
+
+        let mut secondary: Vec<SecondaryStructure> = Vec::new();
+
+        // Parse helixes
+        if let Ok(t) = self.get_table(None, "struct_conf") {
+            for i in 0..t.num_rows {
+                let comp_start = t.columns["beg_label_comp_id"][i].string()?;
+                let chain_start = t.columns["beg_label_asym_id"][i].string()?;
+                let seq_start = t.columns["beg_label_seq_id"][i].string()?;
+                let comp_end = t.columns["end_label_comp_id"][i].string()?;
+                let chain_end = t.columns["end_label_asym_id"][i].string()?;
+                let seq_end = t.columns["end_label_seq_id"][i].string()?;
+                secondary.push(SecondaryStructure {
+                    struct_type: match t.columns["conf_type_id"][i].string()?.as_str() {
+                        _ => SecondaryType::AlphaHelix,
+                    },
+                    start: components[&comp_start][&(chain_start, seq_start)].seq_offset,
+                    end: components[&comp_end][&(chain_end, seq_end)].seq_offset,
+                });
+            }
+        }
+
+        // Parse sheets
+        if let Ok(t) = self.get_table(None, "struct_sheet_range") {
+            for i in 0..t.num_rows {
+                let comp_start = t.columns["beg_label_comp_id"][i].string()?;
+                let chain_start = t.columns["beg_label_asym_id"][i].string()?;
+                let seq_start = t.columns["beg_label_seq_id"][i].string()?;
+                let comp_end = t.columns["end_label_comp_id"][i].string()?;
+                let chain_end = t.columns["end_label_asym_id"][i].string()?;
+                let seq_end = t.columns["end_label_seq_id"][i].string()?;
+                secondary.push(SecondaryStructure {
+                    struct_type: SecondaryType::BetaSheet,
+                    start: components[&comp_start][&(chain_start, seq_start)].seq_offset,
+                    end: components[&comp_end][&(chain_end, seq_end)].seq_offset,
+                });
+            }
+        }
+
+        // Parse assemblies
+        let mut assemblies: HashMap<String, Assembly> = HashMap::new();
+
+        if let Ok(t) = self.get_table(None, "pdbx_struct_assembly_gen") {
+            for i in 0..t.num_rows {
+                println!("{}", t.columns["asym_id_list"][i].string()?);
+                let target_chains = t.columns["asym_id_list"][i]
+                    .string()?
+                    .split(',')
+                    .map(|s| s.to_string())
+                    .collect();
+
+                assemblies.insert(
+                    t.columns["assembly_id"][i].string()?,
+                    Assembly {
+                        target_chains,
+                        copies_per_chain: t.columns["oper_expression"][i].f32()? as usize,
+                        transform: Mat4::ZERO,
+                    },
+                );
+            }
+        }
+
+        if let Ok(t) = self.get_table(None, "pdbx_struct_oper_list") {
+            for i in 0..t.num_rows {
+                assemblies
+                    .get_mut(&t.columns["id"][i].string()?)
+                    .unwrap()
+                    .transform = Mat4::from_cols(
+                    Vec4::new(
+                        t.columns["matrix[1][1]"][i].f32()?,
+                        t.columns["matrix[1][2]"][i].f32()?,
+                        t.columns["matrix[1][3]"][i].f32()?,
+                        0.0,
+                    ),
+                    Vec4::new(
+                        t.columns["matrix[2][1]"][i].f32()?,
+                        t.columns["matrix[2][2]"][i].f32()?,
+                        t.columns["matrix[2][3]"][i].f32()?,
+                        0.0,
+                    ),
+                    Vec4::new(
+                        t.columns["matrix[3][1]"][i].f32()?,
+                        t.columns["matrix[3][2]"][i].f32()?,
+                        t.columns["matrix[3][3]"][i].f32()?,
+                        0.0,
+                    ),
+                    Vec4::new(
+                        t.columns["vector[1]"][i].f32()?,
+                        t.columns["vector[2]"][i].f32()?,
+                        t.columns["vector[3]"][i].f32()?,
+                        1.0,
+                    ),
+                );
+            }
+        }
+
+        // TODO: apply assemblies and parse the operation lists properly
+
         Ok(Structure {
             atoms,
             bonds,
+            secondary,
             ..Default::default()
         })
     }

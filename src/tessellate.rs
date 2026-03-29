@@ -18,13 +18,20 @@ pub struct Atom {
     pub position: Vec3,
 }
 
-#[repr(i32)]
 #[derive(Default, Debug, Copy, Clone)]
 pub enum BondType {
     #[default]
-    Single = 1,
-    Double = 2,
-    Triple = 3,
+    Single,
+    Double,
+    Triple,
+    HBond,
+}
+
+#[derive(Default, Debug)]
+pub enum SecondaryType {
+    #[default]
+    AlphaHelix,
+    BetaSheet,
 }
 
 #[derive(Default, Debug)]
@@ -34,25 +41,18 @@ pub struct Bond {
     pub bond_type: BondType,
 }
 
-// Ligand or residue
 #[derive(Default, Debug)]
-pub struct Molecule {
-    pub name: String,
-    pub is_ligand: bool,
-    pub atoms: Vec<usize>,
-}
-
-#[derive(Default, Debug)]
-pub struct Chain {
-    pub name: String,
-    pub molecules: Vec<Molecule>,
+pub struct SecondaryStructure {
+    pub struct_type: SecondaryType,
+    pub start: usize,
+    pub end: usize,
 }
 
 #[derive(Default, Debug)]
 pub struct Structure {
-    pub chains: Vec<Chain>,
     pub atoms: Vec<Atom>,
     pub bonds: Vec<Bond>,
+    pub secondary: Vec<SecondaryStructure>,
 }
 
 #[derive(Deserialize)]
@@ -128,6 +128,7 @@ impl Tessellator {
             BondType::Single => 1,
             BondType::Double => 2,
             BondType::Triple => 3,
+            BondType::HBond => 0, // FIXME!
         };
         let spacing = 0.15;
         let spread = (multiplicity - 1) as f32 * spacing;

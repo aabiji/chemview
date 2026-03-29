@@ -53,20 +53,6 @@ Molecule visualizer built in Rust and wgpu
 - Wireframe: Represents the bonds between atoms.
 - Ball and stick: Wireframe with spheres to represent atoms.
 
-- ![](https://cdn.ncbi.nlm.nih.gov/pmc/blobs/8d18/7203745/a81d112126a1/btaa072f1.jpg)
-```
-  `_entity.id`                                -> `_struct_asym.entity_id`               : map an entity to its chains
-  `_struct_asym.id`                           -> `_atom_site.label_asym_id`             : map a chain to its atoms
-  `_entity_poly_seq.num`                      -> `_atom_site.label_seq_id`              : map a residue to its atoms
-  `_struct_conf.beg_label_asym_id`            -> `_struct_asym.id`                      : map the start of a helix to a chain
-  `_struct_conf.beg_label_seq_id`             -> `_entity_poly_seq.num`                 : map the start of a helix to a squence
-  `_struct_sheet_range.beg_label_asym_id`     -> `_struct_asym.id`                      : map the start of a beta sheet to a chain
-  `_struct_sheet_range.beg_label_seq_id`      -> `_entity_poly_seq.num`                 : map the start of a beta sheet to a squence
-  `_pdbx_struct_assembly.id`                  -> `_pdbx_struct_assembly_gen.assembly_id`: map an assembly to the generator operations list
-  `_pdbx_struct_assembly_gen.asym_id_list`    -> `_struct_asym.id`                      : map the assembly operation to the chains to transform
-  `_pdbx_struct_assembly_gen.oper_expression` -> `_pdbx_struct_oper_list.id`            : map the assembly operation to the actual transformation matrices
-  `_atom_site`: (label_entity_id, label_asym_id, label_seq_id)
-```
 - Visualization pipeline:
   1. Parse files (SDF, mmCIF) into `Structure`
   2. Tessellate `Structure` into `Shape`s
