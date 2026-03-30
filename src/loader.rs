@@ -1,5 +1,6 @@
 use glam::{Mat4, Vec3, Vec4};
 use indexmap::IndexMap;
+use itertools::Itertools;
 use memchr::memchr;
 use memchr::memmem::find_iter;
 use memmap::{Mmap, MmapOptions};
@@ -104,20 +105,6 @@ impl Token {
 
         Token::Value(data.to_string())
     }
-
-    fn string(&self) -> Result<String, String> {
-        match self {
-            Token::Value(s) => Ok(s.to_string()),
-            _ => Err("Unexpected token".to_string()),
-        }
-    }
-
-    fn f32(&self) -> Result<f32, String> {
-        match self {
-            Token::Value(s) => s.parse::<f32>().map_err(|_| "Invalid number".to_string()),
-            _ => Err("Unexpected token".to_string()),
-        }
-    }
 }
 
 #[derive(Default, Debug)]
@@ -125,6 +112,22 @@ struct Table {
     // keys are sorted by insertion order
     columns: IndexMap<String, Vec<Token>>,
     num_rows: usize,
+}
+
+impl Table {
+    fn string(&self, column: &str, i: usize) -> Result<String, String> {
+        match &self.columns[column][i] {
+            Token::Value(s) => Ok(s.to_string()),
+            _ => Err("Unexpected token".to_string()),
+        }
+    }
+
+    fn f32(&self, column: &str, i: usize) -> Result<f32, String> {
+        match &self.columns[column][i] {
+            Token::Value(s) => s.parse::<f32>().map_err(|_| "Invalid number".to_string()),
+            _ => Err("Unexpected token".to_string()),
+        }
+    }
 }
 
 #[derive(Default, Debug)]
@@ -330,11 +333,77 @@ impl MMCIFLoader {
     }
 }
 
-#[derive(Debug)]
-struct Assembly {
-    target_chains: Vec<String>,
-    transform: Mat4,
-    copies_per_chain: usize,
+// Generates all (chain, transform) pairs needed to build a biological assembly
+// from an mmCIF `oper_expression` and `asym_id_list`.
+//
+// The oper_expression describes which operations from `pdbx_struct_oper_list` to apply,
+// in one of three forms:
+//   - "1"         → single operation
+//   - "1,2,3"     → each operation independently (one copy of chains per op)
+//   - "(1,2)(3,4)"→ Cartesian product: one copy per combination (1×3, 1×4, 2×3, 2×4)
+//
+// Ranges like "(1-60)" are expanded into the full list of operation IDs.
+// For product expressions, each combination is multiplied into a single matrix.
+// Every resulting matrix is paired with every chain in `chains`.
+fn generate_chain_copies(
+    expression: &str,
+    chains: &Vec<String>,
+    transforms: &HashMap<usize, Mat4>,
+) -> Vec<(String, Mat4)> {
+    let is_sequence = !expression.starts_with("(");
+
+    let groups = if is_sequence {
+        // Sequence form "1,2,3": wrap each ID in its own group so the
+        // Cartesian product below treats them as independent operations.
+        expression
+            .split(',')
+            .map(|s| vec![s.parse::<usize>().unwrap()])
+            .collect()
+    } else {
+        // Parenthesized form "(1,2)(3-5)": each (...) is one group.
+        // Strip the leading "(" (+1) and stop before the closing ")".
+        // Ranges like "3-5" are expanded to [3, 4, 5].
+        let mut i = 0;
+        let mut lists = Vec::new();
+
+        while i < expression.len() {
+            let end = i + expression[i..].find(')').unwrap();
+            let group = &expression[i + 1..end];
+
+            let is_range = group.find("-").is_some();
+            let values: Vec<usize> = group
+                .split(if is_range { "-" } else { "," })
+                .map(|s| s.parse::<usize>().unwrap())
+                .collect();
+
+            lists.push(if is_range {
+                (values[0]..=values[1]).collect::<Vec<usize>>()
+            } else {
+                values
+            });
+            i = end + 1;
+        }
+
+        lists
+    };
+
+    // Build the Cartesian product across all groups, then fold each
+    // combination into a single matrix via left-to-right multiplication.
+    // A sequence "1,2,3" has groups [[1],[2],[3]] so no multiplication occurs.
+    let mut chain_copies: Vec<(String, Mat4)> = Vec::new();
+
+    for combo in groups.into_iter().multi_cartesian_product() {
+        let mut result = Mat4::IDENTITY;
+        for id in &combo {
+            result *= transforms[id]
+        }
+
+        for chain in chains {
+            chain_copies.push((chain.clone(), result));
+        }
+    }
+
+    chain_copies
 }
 
 #[derive(Default, Debug)]
@@ -347,7 +416,6 @@ struct Strand {
 type Component = HashMap<(String, String), Strand>;
 
 impl FileLoader for MMCIFLoader {
-    // TODO: parse secondary structures and refactor, refactor, refactor
     fn parse_file(&mut self, path: &Path) -> Result<Structure, String> {
         self.open_file(path)?;
         self.parse_block(None)?;
@@ -363,14 +431,14 @@ impl FileLoader for MMCIFLoader {
                 atoms.push(Atom {
                     chain_id: String::new(),
                     sequence_id: String::new(),
-                    component_name: t.columns["comp_id"][i].string()?,
-                    atom_id: t.columns["atom_id"][i].string()?,
-                    element: t.columns["type_symbol"][i].string()?,
+                    component_name: t.string("comp_id", i)?,
+                    atom_id: t.string("atom_id", i)?,
+                    element: t.string("type_symbol", i)?,
                     is_ligand: true,
                     position: glam::Vec3::new(
-                        t.columns["pdbx_model_Cartn_x_ideal"][i].f32()?,
-                        t.columns["pdbx_model_Cartn_y_ideal"][i].f32()?,
-                        t.columns["pdbx_model_Cartn_z_ideal"][i].f32()?,
+                        t.f32("pdbx_model_Cartn_x_ideal", i)?,
+                        t.f32("pdbx_model_Cartn_y_ideal", i)?,
+                        t.f32("pdbx_model_Cartn_z_ideal", i)?,
                     ),
                 });
             }
@@ -379,16 +447,16 @@ impl FileLoader for MMCIFLoader {
         if let Ok(t) = self.get_table(None, "atom_site") {
             for i in 0..t.num_rows {
                 atoms.push(Atom {
-                    chain_id: t.columns["label_asym_id"][i].string()?,
-                    sequence_id: t.columns["label_seq_id"][i].string()?,
-                    component_name: t.columns["label_comp_id"][i].string()?,
-                    atom_id: t.columns["label_atom_id"][i].string()?,
-                    element: t.columns["type_symbol"][i].string()?,
-                    is_ligand: t.columns["group_PDB"][i].string()? == "HETATM",
+                    chain_id: t.string("label_asym_id", i)?,
+                    sequence_id: t.string("label_seq_id", i)?,
+                    component_name: t.string("label_comp_id", i)?,
+                    atom_id: t.string("label_atom_id", i)?,
+                    element: t.string("type_symbol", i)?,
+                    is_ligand: t.string("group_PDB", i)? == "HETATM",
                     position: glam::Vec3::new(
-                        t.columns["Cartn_x"][i].f32()?,
-                        t.columns["Cartn_y"][i].f32()?,
-                        t.columns["Cartn_z"][i].f32()?,
+                        t.f32("Cartn_x", i)?,
+                        t.f32("Cartn_y", i)?,
+                        t.f32("Cartn_z", i)?,
                     ),
                 });
             }
@@ -431,14 +499,10 @@ impl FileLoader for MMCIFLoader {
         let mut bonds: Vec<Bond> = Vec::new();
         if let Ok(t) = self.get_table(None, "chem_comp_bond") {
             for i in 0..t.num_rows {
-                let component_id = t.columns["comp_id"][i].string()?;
-                let src_id = t.columns["atom_id_1"][i].string()?;
-                let dst_id = t.columns["atom_id_2"][i].string()?;
-                let bond_type = match t.columns["value_order"][i]
-                    .string()?
-                    .to_lowercase()
-                    .as_str()
-                {
+                let component_id = t.string("comp_id", i)?;
+                let src_id = t.string("atom_id_1", i)?;
+                let dst_id = t.string("atom_id_2", i)?;
+                let bond_type = match t.string("value_order", i)?.to_lowercase().as_str() {
                     "sing" => BondType::Single,
                     "doub" => BondType::Double,
                     "trip" => BondType::Triple,
@@ -462,15 +526,15 @@ impl FileLoader for MMCIFLoader {
 
         if let Ok(t) = self.get_table(None, "pdbx_struct_sheet_hbond") {
             for i in 0..t.num_rows {
-                let component1 = t.columns["range_1_label_comp_id"][i].string()?;
-                let chain1 = t.columns["range_1_label_asym_id"][i].string()?;
-                let seq1 = t.columns["range_1_label_seq_id"][i].string()?;
-                let atom1 = t.columns["range_1_label_atom_id"][i].string()?;
+                let component1 = t.string("range_1_label_comp_id", i)?;
+                let chain1 = t.string("range_1_label_asym_id", i)?;
+                let seq1 = t.string("range_1_label_seq_id", i)?;
+                let atom1 = t.string("range_1_label_atom_id", i)?;
 
-                let component2 = t.columns["range_2_label_comp_id"][i].string()?;
-                let chain2 = t.columns["range_2_label_asym_id"][i].string()?;
-                let seq2 = t.columns["range_2_label_seq_id"][i].string()?;
-                let atom2 = t.columns["range_2_label_atom_id"][i].string()?;
+                let component2 = t.string("range_2_label_comp_id", i)?;
+                let chain2 = t.string("range_2_label_asym_id", i)?;
+                let seq2 = t.string("range_2_label_seq_id", i)?;
+                let atom2 = t.string("range_2_label_atom_id", i)?;
 
                 bonds.push(Bond {
                     src: components[&component1][&(chain1, seq1)].atoms[&atom1],
@@ -485,14 +549,14 @@ impl FileLoader for MMCIFLoader {
         // Parse helixes
         if let Ok(t) = self.get_table(None, "struct_conf") {
             for i in 0..t.num_rows {
-                let comp_start = t.columns["beg_label_comp_id"][i].string()?;
-                let chain_start = t.columns["beg_label_asym_id"][i].string()?;
-                let seq_start = t.columns["beg_label_seq_id"][i].string()?;
-                let comp_end = t.columns["end_label_comp_id"][i].string()?;
-                let chain_end = t.columns["end_label_asym_id"][i].string()?;
-                let seq_end = t.columns["end_label_seq_id"][i].string()?;
+                let comp_start = t.string("beg_label_comp_id", i)?;
+                let chain_start = t.string("beg_label_asym_id", i)?;
+                let seq_start = t.string("beg_label_seq_id", i)?;
+                let comp_end = t.string("end_label_comp_id", i)?;
+                let chain_end = t.string("end_label_asym_id", i)?;
+                let seq_end = t.string("end_label_seq_id", i)?;
                 secondary.push(SecondaryStructure {
-                    struct_type: match t.columns["conf_type_id"][i].string()?.as_str() {
+                    struct_type: match t.string("conf_type_id", i)?.as_str() {
                         _ => SecondaryType::AlphaHelix,
                     },
                     start: components[&comp_start][&(chain_start, seq_start)].seq_offset,
@@ -504,12 +568,12 @@ impl FileLoader for MMCIFLoader {
         // Parse sheets
         if let Ok(t) = self.get_table(None, "struct_sheet_range") {
             for i in 0..t.num_rows {
-                let comp_start = t.columns["beg_label_comp_id"][i].string()?;
-                let chain_start = t.columns["beg_label_asym_id"][i].string()?;
-                let seq_start = t.columns["beg_label_seq_id"][i].string()?;
-                let comp_end = t.columns["end_label_comp_id"][i].string()?;
-                let chain_end = t.columns["end_label_asym_id"][i].string()?;
-                let seq_end = t.columns["end_label_seq_id"][i].string()?;
+                let comp_start = t.string("beg_label_comp_id", i)?;
+                let chain_start = t.string("beg_label_asym_id", i)?;
+                let seq_start = t.string("beg_label_seq_id", i)?;
+                let comp_end = t.string("end_label_comp_id", i)?;
+                let chain_end = t.string("end_label_asym_id", i)?;
+                let seq_end = t.string("end_label_seq_id", i)?;
                 secondary.push(SecondaryStructure {
                     struct_type: SecondaryType::BetaSheet,
                     start: components[&comp_start][&(chain_start, seq_start)].seq_offset,
@@ -519,63 +583,53 @@ impl FileLoader for MMCIFLoader {
         }
 
         // Parse assemblies
-        let mut assemblies: HashMap<String, Assembly> = HashMap::new();
-
-        if let Ok(t) = self.get_table(None, "pdbx_struct_assembly_gen") {
-            for i in 0..t.num_rows {
-                println!("{}", t.columns["asym_id_list"][i].string()?);
-                let target_chains = t.columns["asym_id_list"][i]
-                    .string()?
-                    .split(',')
-                    .map(|s| s.to_string())
-                    .collect();
-
-                assemblies.insert(
-                    t.columns["assembly_id"][i].string()?,
-                    Assembly {
-                        target_chains,
-                        copies_per_chain: t.columns["oper_expression"][i].f32()? as usize,
-                        transform: Mat4::ZERO,
-                    },
-                );
-            }
-        }
+        let mut transforms: HashMap<usize, Mat4> = HashMap::new();
 
         if let Ok(t) = self.get_table(None, "pdbx_struct_oper_list") {
             for i in 0..t.num_rows {
-                assemblies
-                    .get_mut(&t.columns["id"][i].string()?)
-                    .unwrap()
-                    .transform = Mat4::from_cols(
+                *transforms.entry(t.f32("id", i)? as usize).or_default() = Mat4::from_cols(
                     Vec4::new(
-                        t.columns["matrix[1][1]"][i].f32()?,
-                        t.columns["matrix[1][2]"][i].f32()?,
-                        t.columns["matrix[1][3]"][i].f32()?,
+                        t.f32("matrix[1][1]", i)?,
+                        t.f32("matrix[2][1]", i)?,
+                        t.f32("matrix[3][1]", i)?,
                         0.0,
                     ),
                     Vec4::new(
-                        t.columns["matrix[2][1]"][i].f32()?,
-                        t.columns["matrix[2][2]"][i].f32()?,
-                        t.columns["matrix[2][3]"][i].f32()?,
+                        t.f32("matrix[1][2]", i)?,
+                        t.f32("matrix[2][2]", i)?,
+                        t.f32("matrix[3][2]", i)?,
                         0.0,
                     ),
                     Vec4::new(
-                        t.columns["matrix[3][1]"][i].f32()?,
-                        t.columns["matrix[3][2]"][i].f32()?,
-                        t.columns["matrix[3][3]"][i].f32()?,
+                        t.f32("matrix[1][3]", i)?,
+                        t.f32("matrix[2][3]", i)?,
+                        t.f32("matrix[3][3]", i)?,
                         0.0,
                     ),
                     Vec4::new(
-                        t.columns["vector[1]"][i].f32()?,
-                        t.columns["vector[2]"][i].f32()?,
-                        t.columns["vector[3]"][i].f32()?,
+                        t.f32("vector[1]", i)?,
+                        t.f32("vector[2]", i)?,
+                        t.f32("vector[3]", i)?,
                         1.0,
                     ),
                 );
             }
         }
 
-        // TODO: apply assemblies and parse the operation lists properly
+        let mut chain_copies: Vec<(String, Mat4)> = Vec::new();
+
+        if let Ok(t) = self.get_table(None, "pdbx_struct_assembly_gen") {
+            for i in 0..t.num_rows {
+                let chains = t
+                    .string("asym_id_list", i)?
+                    .split(',')
+                    .map(|s| s.to_string())
+                    .collect();
+                let combos =
+                    generate_chain_copies(&t.string("oper_expression", i)?, &chains, &transforms);
+                dbg!(&combos);
+            }
+        }
 
         Ok(Structure {
             atoms,

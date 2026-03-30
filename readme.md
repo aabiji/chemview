@@ -1,4 +1,4 @@
-Molecule visualizer built in Rust and wgpu
+Protein visualizer built in Rust and wgpu
 
 ### Notes
 *Residue*: Different name for an amino acid.
@@ -59,7 +59,7 @@ Molecule visualizer built in Rust and wgpu
   3. Convert `Shape`s to mesh data for rendering
 
 
-### Ressources
+### Resources
 
 - [Chemical table file](https://en.wikipedia.org/wiki/Chemical_table_file)
 - [SDF File format guidance](https://www.nonlinear.com/progenesis/sdf-studio/v0.9/faq/sdf-file-format-guidance.aspx)
@@ -71,8 +71,7 @@ Molecule visualizer built in Rust and wgpu
 - [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
 - [Secondary Structure and Loops](https://bio.libretexts.org/Bookshelves/Biochemistry/Fundamentals_of_Biochemistry_(Jakubowski_and_Flatt)/01%3A_Unit_I-_Structure_and_Catalysis/04%3A_The_Three-Dimensional_Structure_of_Proteins/4.02%3A_Secondary_Structure_and_Loops)
 
-- [Structures of Human Sequences](https://www.rcsb.org/search?q=rcsb_entity_source_organism.ncbi_scientific_name:Homo%20sapiens)
-- [Rendering techniques for proteins](https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2021.642172/full)
+- [ProteinShader: Illustrative rendering of macromolecules](https://link.springer.com/article/10.1186/1472-6807-9-19)
 
 ### Roadmap
 
@@ -153,6 +152,8 @@ Part 2 -> Render proteins:
 
 Part 3 -> Wild ideas:
 - Make this an library that can be used by other crates??
+
+- Click on meshes to highlight and get info on different chains, residues, ligands, etc
 
 - Visualize a chemical reaction as it happens?
 
