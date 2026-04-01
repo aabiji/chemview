@@ -1,77 +1,4 @@
-Protein visualizer built in Rust and wgpu
-
-### Notes
-*Residue*: Different name for an amino acid.
-
-*Ligand*: Any non polymer molecule bound to the main structure. (HETATM)
-
-*Oligosaccharide*: Carbohydrate chain 3-10 monomers long.
-
-*Polysaccharide*: Carbohydrate chain 10+ monomers long.
-
-*Glycans*: Oligosaccharides or polysaccharides that form part of the glycocalix (dense carbohydrate coating on the exterior of the cell membrane) and help cells to identify themselves and interact with their environment.
-
-*Protein structures*
-- Primary:
-  - Amino acids linked together by peptide bonds (C-N bond -> the N-terminus side with the C-terminus side).
-  - The peptide bond has two resonance structures, making there be no free rotation
-    ![](https://chem.libretexts.org/@api/deki/files/431969/clipboard_e91b1f279848763bb8eb3efbaa73339d7.png?revision=1)
-    around the peptide bond.
-  - Cysteine has `HS` for its `R` group, and when oxygenated, those R group can form disulfide bonds (S-S).
-  - Amino acids are read from the N terminus side to the C terminus side.
-
-- Secondary
-  - Helixes:
-    - Alpha helix: The amino acids in the chain are already oriented in 3D space such that C=O in
-      the *i*th amino acid points directly towards N-H of the *i + 4*th amino acid. So, an H bond can form,
-      giving the structure stability. The H bond strengthened a connection that's already implied by the chain's geometry.
-      The `R` groups branch off of the main backbone chain.
-    - 3-10 helix: An H bond forms between the carboxyl O of the *i*th amino acid and the amine N *i + 3*th amino acid
-    - Pi helix: An H bond forms between the carboxyl O of the *i*th amino acid and the amine N *i + 5*th amino acid
-    - H bonds are **intrastrand**. Rendered as coils.
-    - *Triple helix*: A set of 3 identical helices with the axis, differing only by a translation on that axis.
-      Seen in collagen for example.
-
-  - Beta sheet: The amino acid chain is pulled nearly straight, and the up/down zig-zag pattern
-    (aligned parallel (N terminus on the same side) or antiparallel (N terminus on opposite sides))
-    comes from the tetrahedral shape at each alpha carbon. H bonds are **interstrand**, from the
-    carboxyl O in the amino acid of one sheet, to the amine N in the amino acid of
-    another sheet. Rendered as a flat ribbon with an arrowhead pointed towards the N-terminus.
-
-  - *Random coils*: Organized but not repeating amino acid structures between alpha helixes and beta sheets.
-    Represented using lines ![](https://upload.wikimedia.org/wikipedia/commons/3/30/Insulin_1AI0_animation.gif).
-
-- Tertiary
-  - The different interactions that hold a ![polypeptide chain stable](https://chem.libretexts.org/@api/deki/files/432385/clipboard_eb73f08683beb5308f9ebeb05bc9bd823.png?revision=1)
-    in 3D space include disulfide bonds, salt bridge, coordinate (covalent) bonds, hydrogen bonding, hydrophobic interactions, etc.
-
-- Quaternary
-  - A collection of polypeptide chains (not covalently bonded to each other) held together by the tertiary interactions described above.
-
-*Model types*
-- Space filling: Represents the physical volume of each of the atoms in a compound.
-- Wireframe: Represents the bonds between atoms.
-- Ball and stick: Wireframe with spheres to represent atoms.
-
-- Visualization pipeline:
-  1. Parse files (SDF, mmCIF) into `Structure`
-  2. Tessellate `Structure` into `Shape`s
-  3. Convert `Shape`s to mesh data for rendering
-
-
-### Resources
-
-- [Chemical table file](https://en.wikipedia.org/wiki/Chemical_table_file)
-- [SDF File format guidance](https://www.nonlinear.com/progenesis/sdf-studio/v0.9/faq/sdf-file-format-guidance.aspx)
-- [Learn WGPU](https://sotrh.github.io/learn-wgpu/beginner/tutorial1-window/#boring-i-know)
-- [Covalent radii revisited](https://www.researchgate.net/publication/5373706_Covalent_radii_revisited)
-- [Atomic Radius in the Periodic Table of Elements](https://pubchem.ncbi.nlm.nih.gov/ptable/atomic-radius/)
-- [OpenGL Cylinder, Prism & Pipe](https://www.songho.ca/opengl/gl_cylinder.html)
-- [OpenGL Sphere](https://www.songho.ca/opengl/gl_sphere.html)
-- [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
-- [Secondary Structure and Loops](https://bio.libretexts.org/Bookshelves/Biochemistry/Fundamentals_of_Biochemistry_(Jakubowski_and_Flatt)/01%3A_Unit_I-_Structure_and_Catalysis/04%3A_The_Three-Dimensional_Structure_of_Proteins/4.02%3A_Secondary_Structure_and_Loops)
-
-- [ProteinShader: Illustrative rendering of macromolecules](https://link.springer.com/article/10.1186/1472-6807-9-19)
+Protein visualizer built in Rust and wgpu.
 
 ### Roadmap
 
@@ -101,59 +28,53 @@ Part 1 -> Small molecule viewer:
   - [x] Map the parsed `Compound` into `Vec<Shape>`
   - [x] Feature complete ball and stick model
   - [x] Feature complete space filling model
+  - [x] Feature complete wireframe model
 
-Part 1.5 -> Improve UX:
-- [x] Fixed position camera, mouse rotates the compound itself, not the scene
-- [x] Add a ui to manipulate the compound in focus
+- [x] Better UX:
+  - [x] Fixed position camera, mouse rotates the compound itself, not the scene
+  - [x] Add a ui to manipulate the compound in focus
+    - [x] File path input
+    - [x] Dropdown to change view mode
+  - [x] Load compounds on a separate thread
 
-Part 2 -> Render proteins:
+Part 2 -> Protein renderer:
 - [x] Parse mmCIF files
   - [x] Basic mmCIF file parsing into structured types
   - [x] mmap the file and parse by streaming the content
   - [x] Organize the data into Chains and Residues
   - [x] Abstract away the file format used. Use an interface that loads the file, then the file to output a mesh,
         use that mesh data (not tied to any semantic meaning) to do instance rendering
-  - [x] Compounds should be loaded on a separate thread
+  - [ ] Refactor the mmCIF parser. It should not be 600+ lines, refactor to reduce string allocations, make it faster and make it simpler/more ergonomic
+
+- Improve existing rendering
+  - [ ] Add global illumination to avoid shadows and dim areas of the compound
+  - [ ] Initially position the camera far back enough in order to see the entire compound at once
+  - [ ] Constrain camera movement
+  - [ ] Adjust the projection matrix to keep the entire compound in view when zoomed fully out
+  - [ ] Dynamically allocate the storage buffer for vertices (still with a hard limit)
+  - [ ] Cache the mesh data for different view types
+    - [ ] Optionally filter H and H20 during mmcif parsing
+  - [ ] Refactor the meshing algorithms
+    - [ ] Generate spheres with less triangles
+    - [ ] Generate a [capsule](https://gamedev.stackexchange.com/questions/162426/how-to-draw-a-3d-capsule)
+          instead of an open cylinder
+  - [ ] Add frustrum culling: Don't render vertices outside of the camera's view
+  - [ ] Refactor the way that instancing is done: having to keep track of the number of spheres is a weird decision
+
+- [ ] Infer the compound
+  - [x] Parse bonds from the `chem_comp_bond` table
+  - [ ] Read the CCD file to get residue bonds that aren't present in the mmcif file
+  - [ ] Read the CCD file to get residue atoms (like H) that aren't present in the mmcif file
 
 - [ ] Render proteins
-  - [x] Wirefram diagram
-  - [x] Space filling diagram
-  - [x] Perform bond inference to establish bonds between every single atom in the chain
-  - [ ] Include a light behind the origin
-  - [ ] Work on the Structure tesselator
-    - [ ] Cache the meshes for different view types
-    - [ ] Add ligand and element filtering (filter H, filter H20)
-      - [ ] Implement filtering in a cleaner way -> shouldn't be done in tesselation and loading
-    - [ ] Parse chains and residues from the file if they exist
-    - [ ] Iterate over bonds for a specific residue instead during tessellation. Should bond iteration be abstracted?
-    - [ ] Refactor the meshing algorithms
-      - [ ] Understand how spheres and cylinder meshes were generated (in detail - reimplement myself)
-      - [ ] Generate [capsule](https://gamedev.stackexchange.com/questions/162426/how-to-draw-a-3d-capsule) mesh
-      - [ ] Generate a mesh of a curve that passes through a set of points
-  - [ ] Parts of the molecule shouldn't be going out of view as the camera moves backwards
-  - [ ] FPS falls apart on some of these larger proteins...why?
-  - [ ] Add dotted lines for hydrogen bonds and disulfide bonds
-  - [ ] Implement frustrum culling: don't render objects outside of the camera's view
-  - [ ] Level of detail: switch between different representations based off of the zoom level (for massive molecules)
+  - Read this [paper](https://link.springer.com/article/10.1186/1472-6807-9-19) and take detailed notes
 
-  - [ ] Backbone and ribbon diagram: draw a tube that connects the positions of each amino acid.
-        Add a spring shaped ribbon to represent alpha helices and a flat arrow to represent beta strands.
-    - [ ] Render ribbons for helices, arrows for beta strands, tubes for loops. To do this,
-          I need to know which *residues* are alpha helicies, beta shets or coils.
-          Implement the **DSSP** (Define Secondary STructure of Proteins) to figure that out
-    - [ ] Use the alpha carbon atom from each residue to use as positions for control points.
-          Explore using Catmull-Rom or cubix Hermite spline through the control points
-    - [ ] Build the ribbon geometry using a Fresnet-Serret frame. Add arrow heads for beta strands
-    - [ ] Overlay the ball and stick Overton the ribbon rendering
-    - [ ] Render disulfide bridges
+Part 3 -> Extra ideas:
+- Render the protein using a surface model
 
-  - [ ] Surface model
-      - ???
-
-Part 3 -> Wild ideas:
 - Make this an library that can be used by other crates??
 
-- Click on meshes to highlight and get info on different chains, residues, ligands, etc
+- Click on meshes to highlight and get info on different chains, residues, ligands, etc. Optionally filter out atoms/molecules (ex: H, H20)
 
 - Visualize a chemical reaction as it happens?
 
