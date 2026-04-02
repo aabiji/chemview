@@ -625,9 +625,8 @@ impl FileLoader for MMCIFLoader {
                     .split(',')
                     .map(|s| s.to_string())
                     .collect();
-                let combos =
+                chain_copies =
                     generate_chain_copies(&t.string("oper_expression", i)?, &chains, &transforms);
-                dbg!(&combos);
             }
         }
 
@@ -635,6 +634,7 @@ impl FileLoader for MMCIFLoader {
             atoms,
             bonds,
             secondary,
+            chain_copies,
             ..Default::default()
         })
     }

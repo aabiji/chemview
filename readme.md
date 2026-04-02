@@ -44,7 +44,7 @@ Part 2 -> Protein renderer:
   - [x] Organize the data into Chains and Residues
   - [x] Abstract away the file format used. Use an interface that loads the file, then the file to output a mesh,
         use that mesh data (not tied to any semantic meaning) to do instance rendering
-  - [ ] Refactor the mmCIF parser. It should not be 600+ lines, refactor to reduce string allocations, make it faster and make it simpler/more ergonomic
+  - [x] Refactor the mmCIF parser. It should not be 600+ lines, refactor to reduce string allocations, make it faster and make it simpler/more ergonomic
 
 - Improve existing rendering
   - [ ] Add global illumination to avoid shadows and dim areas of the compound

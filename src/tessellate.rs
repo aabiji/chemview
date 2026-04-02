@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{Mat4, Vec3};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
@@ -53,6 +53,7 @@ pub struct Structure {
     pub atoms: Vec<Atom>,
     pub bonds: Vec<Bond>,
     pub secondary: Vec<SecondaryStructure>,
+    pub chain_copies: Vec<(String, Mat4)>,
 }
 
 #[derive(Deserialize)]
