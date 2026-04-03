@@ -1,11 +1,11 @@
 use glam::{Mat4, Vec3};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
+use std::f32;
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 
-use crate::loader::MMCIFLoader;
-use crate::mesh::Shape;
+use crate::shape::Shape;
 
 #[derive(Default, Debug)]
 pub struct Atom {
@@ -80,17 +80,8 @@ impl Display for RenderStyle {
     }
 }
 
-#[derive(Default)]
-pub struct TessellateOutput {
-    pub shapes: Vec<Shape>,
-    pub num_spheres: usize,
-    pub bounding_min: Vec3,
-    pub bounding_max: Vec3,
-}
-
 pub struct Tessellator {
     element_db: HashMap<String, ElementInfo>,
-    ccd: MMCIFLoader,
 }
 
 impl Tessellator {
@@ -101,14 +92,13 @@ impl Tessellator {
         let mut ccd = MMCIFLoader::default();
         ccd.open_file(&path)?;
         */
-        let mut ccd = MMCIFLoader::default();
 
         let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let info_path = base.join("data/element_data.json");
         let contents = std::fs::read_to_string(info_path).map_err(|err| err.to_string())?;
         let element_db = serde_json::from_str(&contents).map_err(|err| err.to_string())?;
 
-        Ok(Tessellator { element_db, ccd })
+        Ok(Tessellator { element_db })
     }
 
     fn add_bond(
@@ -160,11 +150,11 @@ impl Tessellator {
         structure: &Structure,
         camera_front: Vec3,
         wireframe: bool,
-    ) -> TessellateOutput {
-        let mut output = TessellateOutput::default();
-
+    ) -> (Vec<Shape>, Vec3, Vec3) {
         let mut sphere_set: HashSet<Shape> = HashSet::new();
         let mut cylinders: Vec<Shape> = Vec::new();
+        let mut bounding_min = Vec3::new(f32::MAX, f32::MAX, f32::MAX);
+        let mut bounding_max = Vec3::new(f32::MIN, f32::MIN, f32::MIN);
 
         let bond_color = Vec3::new(0.67, 0.67, 0.67);
         let radius_scale = 0.5;
@@ -199,12 +189,10 @@ impl Tessellator {
                 &bond.bond_type,
             );
 
-            output.bounding_min = output
-                .bounding_min
+            bounding_min = bounding_min
                 .min(src_sphere.bounds().0)
                 .min(dst_sphere.bounds().0);
-            output.bounding_min = output
-                .bounding_max
+            bounding_max = bounding_max
                 .max(src_sphere.bounds().1)
                 .max(dst_sphere.bounds().1);
 
@@ -214,14 +202,15 @@ impl Tessellator {
             }
         }
 
-        output.num_spheres = sphere_set.len();
-        output.shapes = sphere_set.iter().cloned().collect();
-        output.shapes.extend(cylinders.drain(..));
-        output
+        let mut shapes: Vec<Shape> = sphere_set.iter().cloned().collect();
+        shapes.append(&mut cylinders);
+        (shapes, bounding_min, bounding_max)
     }
 
-    fn space_filling(&mut self, structure: &Structure) -> TessellateOutput {
-        let mut output = TessellateOutput::default();
+    fn space_filling(&mut self, structure: &Structure) -> (Vec<Shape>, Vec3, Vec3) {
+        let mut bounding_min = Vec3::new(f32::MAX, f32::MAX, f32::MAX);
+        let mut bounding_max = Vec3::new(f32::MIN, f32::MIN, f32::MIN);
+        let mut shapes: Vec<Shape> = Vec::new();
 
         for atom in &structure.atoms {
             let shape = Shape::Sphere {
@@ -229,13 +218,12 @@ impl Tessellator {
                 color: Vec3::from_slice(&self.element_db[&atom.element].color),
                 radius: self.element_db[&atom.element].waal_radius,
             };
-            output.bounding_min = output.bounding_min.min(shape.bounds().0);
-            output.bounding_max = output.bounding_max.max(shape.bounds().1);
-            output.shapes.push(shape);
+            bounding_min = bounding_min.min(shape.bounds().0);
+            bounding_max = bounding_max.max(shape.bounds().1);
+            shapes.push(shape);
         }
 
-        output.num_spheres = output.shapes.len();
-        output
+        (shapes, bounding_max, bounding_max)
     }
 
     pub fn tessellate(
@@ -243,7 +231,7 @@ impl Tessellator {
         structure: &Structure,
         camera_front: Vec3,
         view: &RenderStyle,
-    ) -> TessellateOutput {
+    ) -> (Vec<Shape>, Vec3, Vec3) {
         match view {
             RenderStyle::BallAndStick | RenderStyle::Wireframe => {
                 self.wireframe(structure, camera_front, view == &RenderStyle::Wireframe)

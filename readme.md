@@ -55,11 +55,11 @@ Part 2 -> Protein renderer:
   - [ ] Cache the mesh data for different view types
     - [ ] Optionally filter H and H20 during mmcif parsing
   - [ ] Refactor the meshing algorithms
-    - [ ] Generate spheres with less triangles
+    - [ ] Generate an [icosphere](https://blog.lslabs.dev/posts/generating_icosphere_with_code) instead of a UV sphere
     - [ ] Generate a [capsule](https://gamedev.stackexchange.com/questions/162426/how-to-draw-a-3d-capsule)
           instead of an open cylinder
   - [ ] Add frustrum culling: Don't render vertices outside of the camera's view
-  - [ ] Refactor the way that instancing is done: having to keep track of the number of spheres is a weird decision
+  - [x] Refactor the way that instancing is done: having to keep track of the number of spheres is a weird decision
 
 - [ ] Infer the compound
   - [x] Parse bonds from the `chem_comp_bond` table

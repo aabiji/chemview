@@ -4,9 +4,9 @@ use winit::event_loop::{ControlFlow, EventLoop};
 mod app;
 mod camera;
 mod loader;
-mod mesh;
 mod renderer;
 mod shader;
+mod shape;
 mod tessellate;
 mod ui;
 

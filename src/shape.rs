@@ -1,9 +1,8 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Quat, Vec3};
+use glam::Vec3;
 use std::f32::consts::PI;
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::ops::Range;
 
 #[derive(Clone)]
 pub enum Shape {
@@ -72,47 +71,6 @@ impl Hash for Shape {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct InstanceData {
-    model_matrix: [[f32; 4]; 4],
-    color: [f32; 4],
-}
-
-pub fn to_raw(shape: &Shape) -> InstanceData {
-    match *shape {
-        Shape::Sphere {
-            origin,
-            color,
-            radius,
-        } => {
-            let model = Mat4::from_translation(origin) * Mat4::from_scale(Vec3::splat(radius));
-            InstanceData {
-                model_matrix: model.to_cols_array_2d(),
-                color: [color.x, color.y, color.z, 1.0],
-            }
-        }
-        Shape::Cylinder {
-            start,
-            end,
-            color,
-            radius,
-        } => {
-            // Create a transformation matrix that orientes the cylinder from start to end
-            let direction = end - start;
-            let length = direction.length();
-            let rotation = Quat::from_rotation_arc(Vec3::Z, direction.normalize());
-            let model = Mat4::from_translation(start)
-                * Mat4::from_quat(rotation)
-                * Mat4::from_scale(Vec3::new(radius, radius, length));
-            InstanceData {
-                model_matrix: model.to_cols_array_2d(),
-                color: [color.x, color.y, color.z, 1.0],
-            }
-        }
-    }
-}
-
-#[repr(C)]
 #[derive(Clone, Default, Pod, Zeroable, Copy)]
 pub struct Vertex {
     pub position: [f32; 4],
@@ -131,7 +89,7 @@ impl Vertex {
 // Code was taken from here: https://www.songho.ca/opengl/gl_sphere.html
 // Stacks go medially while sectors go laterally Creating a sphere shape from
 // a bunch of sectors (subdivided into 2 triangles) arranged spherically.
-fn generate_sphere_mesh(
+pub fn generate_sphere_mesh(
     sector_count: usize,
     stack_count: usize,
     radius: f32,
@@ -187,7 +145,7 @@ fn generate_sphere_mesh(
 // Same general algorithm as the sphere generation
 // NOTE: the cylinder is uncapped because the ends of the cylinder will be covered up anyways
 // in the scene
-fn generate_cylinder_mesh(
+pub fn generate_cylinder_mesh(
     sector_count: usize,
     radius: f32,
     height: f32,
@@ -231,25 +189,4 @@ fn generate_cylinder_mesh(
     }
 
     (vertices, indices)
-}
-
-// Create a vertex buffer and an index buffer that combines the vertices and
-// indices for sphere and cylinders, demarkated by index ranges
-pub fn create_shape_mesh_buffers() -> (Vec<Vertex>, Vec<u32>, Range<u32>, Range<u32>) {
-    let (v1, i1) = generate_sphere_mesh(32, 32, 1.0);
-    let (v2, i2) = generate_cylinder_mesh(32, 1.0, 1.0);
-
-    // Offset the indices for the cylinder vertices
-    let sphere_vertex_count = v1.len() as u32;
-    let i2_offset: Vec<u32> = i2.iter().map(|i| i + sphere_vertex_count).collect();
-
-    let sphere_index_range = 0..i1.len() as u32;
-    let cylinder_index_range = i1.len() as u32..(i1.len() + i2.len()) as u32;
-
-    (
-        [v1.as_slice(), v2.as_slice()].concat(),
-        [i1.as_slice(), i2_offset.as_slice()].concat(),
-        sphere_index_range,
-        cylinder_index_range,
-    )
 }

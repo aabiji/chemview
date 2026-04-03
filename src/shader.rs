@@ -13,7 +13,7 @@ pub struct ShaderVar {
     pub is_f32: bool,
     pub is_storage: bool,
     pub num_bytes: usize,
-    pub label: String,
+    pub label: &'static str,
 }
 
 pub fn load_shader_source(path: &PathBuf) -> Result<String, io::Error> {
@@ -23,31 +23,7 @@ pub fn load_shader_source(path: &PathBuf) -> Result<String, io::Error> {
     Ok(contents)
 }
 
-pub fn setup_shader_vars(
-    device: &Device,
-    vars: &[ShaderVar],
-) -> (Vec<Buffer>, BindGroupLayout, BindGroup) {
-    let buffers: Vec<Buffer> = vars
-        .iter()
-        .map(|v| {
-            let contents = if v.is_f32 {
-                bytemuck::cast_slice(&vec![0.0f32; v.num_bytes]).to_vec()
-            } else {
-                bytemuck::cast_slice(&vec![0u32; v.num_bytes]).to_vec()
-            };
-
-            device.create_buffer_init(&BufferInitDescriptor {
-                label: Some(&v.label),
-                contents: &contents,
-                usage: if v.is_storage {
-                    BufferUsages::STORAGE | BufferUsages::COPY_DST
-                } else {
-                    BufferUsages::UNIFORM | BufferUsages::COPY_DST
-                },
-            })
-        })
-        .collect();
-
+pub fn create_bind_group_layout(device: &Device, vars: &[ShaderVar]) -> BindGroupLayout {
     let layout_entries: Vec<BindGroupLayoutEntry> = vars
         .iter()
         .enumerate()
@@ -67,6 +43,38 @@ pub fn setup_shader_vars(
         })
         .collect();
 
+    device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Main bind group layout"),
+        entries: &layout_entries,
+    })
+}
+
+pub fn create_buffers(
+    device: &Device,
+    layout: &BindGroupLayout,
+    vars: &[ShaderVar],
+) -> (Vec<Buffer>, BindGroup) {
+    let buffers: Vec<Buffer> = vars
+        .iter()
+        .map(|v| {
+            let contents = if v.is_f32 {
+                bytemuck::cast_slice(&vec![0.0f32; v.num_bytes]).to_vec()
+            } else {
+                bytemuck::cast_slice(&vec![0u32; v.num_bytes]).to_vec()
+            };
+
+            device.create_buffer_init(&BufferInitDescriptor {
+                label: Some(v.label),
+                contents: &contents,
+                usage: if v.is_storage {
+                    BufferUsages::STORAGE | BufferUsages::COPY_DST
+                } else {
+                    BufferUsages::UNIFORM | BufferUsages::COPY_DST
+                },
+            })
+        })
+        .collect();
+
     let entries: Vec<BindGroupEntry> = vars
         .iter()
         .enumerate()
@@ -76,16 +84,55 @@ pub fn setup_shader_vars(
         })
         .collect();
 
-    let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Main bind group layout"),
-        entries: &layout_entries,
-    });
-
     let group = device.create_bind_group(&BindGroupDescriptor {
         label: Some("Vertex shader bind group"),
         layout: &layout,
         entries: &entries,
     });
 
-    (buffers, layout, group)
+    (buffers, group)
 }
+
+pub const GLOBAL_SHADER_VARS: [ShaderVar; 4] = [
+    ShaderVar {
+        is_f32: true,
+        is_storage: false,
+        num_bytes: 16,
+        label: "Projection matrix",
+    },
+    ShaderVar {
+        is_f32: true,
+        is_storage: false,
+        num_bytes: 16,
+        label: "View matrix",
+    },
+    ShaderVar {
+        is_f32: true,
+        is_storage: false,
+        num_bytes: 16,
+        label: "Object rotation",
+    },
+    ShaderVar {
+        is_f32: true,
+        is_storage: false,
+        num_bytes: 4,
+        label: "Camera position",
+    },
+];
+
+const STORAGE_BUFFER_SIZE: usize = 10 * 1024 * 1024;
+
+pub const INSTANCE_SHADER_VARS: [ShaderVar; 2] = [
+    ShaderVar {
+        is_f32: true,
+        is_storage: true,
+        num_bytes: STORAGE_BUFFER_SIZE,
+        label: "Model matrices",
+    },
+    ShaderVar {
+        is_f32: true,
+        is_storage: true,
+        num_bytes: STORAGE_BUFFER_SIZE,
+        label: "Colors",
+    },
+];

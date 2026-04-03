@@ -13,17 +13,18 @@ use winit::{
     window::{WindowAttributes, WindowId},
 };
 
+use crate::camera::Action;
 use crate::loader::{FileLoader, MMCIFLoader, SDFLoader};
 use crate::renderer::Renderer;
-use crate::tessellate::{RenderStyle, TessellateOutput, Tessellator};
+use crate::shape::Shape;
+use crate::tessellate::{RenderStyle, Structure, Tessellator};
 use crate::ui::UIState;
-use crate::{camera::Action, tessellate::Structure};
 
 enum Message {
     LoadFileRequest(PathBuf),
     LoadSuccess,
     TessRequest((RenderStyle, Vec3)),
-    TessResponse(TessellateOutput),
+    TessResponse((Vec<Shape>, Vec3, Vec3)),
     ErrResponse(String),
 }
 
@@ -91,7 +92,7 @@ impl App {
                 file_path: String::from("/home/aabiji/dev/chemview/data/mmcif/28VP.cif"),
                 path_changed: false,
                 error_message: None,
-                view_type: RenderStyle::BallAndStick,
+                view_type: RenderStyle::Wireframe,
                 view_changed: false,
                 fps: 0.0,
             },

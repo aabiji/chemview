@@ -157,7 +157,7 @@ impl MMCIFLoader {
         let bytes: &[u8] = self.mmap.as_ref().unwrap();
 
         let mut offsets: Vec<usize> = find_iter(bytes, needle.as_bytes())
-            .filter(|i| i - 0 == 0 || bytes[i - 1] == b'\n')
+            .filter(|i| *i - 0 == 0 || bytes[i - 1] == b'\n')
             .collect();
         offsets.push(bytes.len());
 
@@ -259,7 +259,7 @@ impl MMCIFLoader {
 
         let bytes = self.mmap.as_ref().unwrap();
         while i < end {
-            let token = Self::next_token(&mut i, &bytes, false);
+            let token = Self::next_token(&mut i, bytes, false);
 
             match token {
                 Token::TableStart | Token::Eof => in_table = true,
@@ -292,7 +292,7 @@ impl MMCIFLoader {
                         let t = if key_idx == 0 {
                             token.clone()
                         } else {
-                            Self::next_token(&mut i, &bytes, false)
+                            Self::next_token(&mut i, bytes, false)
                         };
                         table
                             .columns
@@ -303,7 +303,7 @@ impl MMCIFLoader {
 
                     // Is last row?
                     let next_is_value =
-                        matches!(Self::next_token(&mut i, &bytes, true), Token::Value(_));
+                        matches!(Self::next_token(&mut i, bytes, true), Token::Value(_));
                     if in_table && !next_is_value {
                         in_table = false;
                     }
@@ -370,7 +370,7 @@ fn generate_chain_copies(
             let end = i + expression[i..].find(')').unwrap();
             let group = &expression[i + 1..end];
 
-            let is_range = group.find("-").is_some();
+            let is_range = group.contains("-");
             let values: Vec<usize> = group
                 .split(if is_range { "-" } else { "," })
                 .map(|s| s.parse::<usize>().unwrap())
@@ -509,7 +509,7 @@ impl FileLoader for MMCIFLoader {
                     x => return Err(format!("Unkonwn bond type {x}")),
                 };
 
-                for (_, instance) in &components[&component_id] {
+                for instance in components[&component_id].values() {
                     if !instance.atoms.contains_key(&src_id)
                         || !instance.atoms.contains_key(&dst_id)
                     {
@@ -557,7 +557,7 @@ impl FileLoader for MMCIFLoader {
                 let seq_end = t.string("end_label_seq_id", i)?;
                 secondary.push(SecondaryStructure {
                     struct_type: match t.string("conf_type_id", i)?.as_str() {
-                        _ => SecondaryType::AlphaHelix,
+                        _ => SecondaryType::AlphaHelix, // FIXME!
                     },
                     start: components[&comp_start][&(chain_start, seq_start)].seq_offset,
                     end: components[&comp_end][&(chain_end, seq_end)].seq_offset,
@@ -635,7 +635,6 @@ impl FileLoader for MMCIFLoader {
             bonds,
             secondary,
             chain_copies,
-            ..Default::default()
         })
     }
 }
