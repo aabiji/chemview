@@ -54,9 +54,9 @@ Part 2 -> Protein renderer:
   - [ ] Dynamically allocate the storage buffer for vertices (still with a hard limit)
   - [ ] Cache the mesh data for different view types
     - [ ] Optionally filter H and H20 during mmcif parsing
-  - [ ] Refactor the meshing algorithms
-    - [ ] Generate an [icosphere](https://blog.lslabs.dev/posts/generating_icosphere_with_code) instead of a UV sphere
-    - [ ] Generate a [capsule](https://gamedev.stackexchange.com/questions/162426/how-to-draw-a-3d-capsule)
+  - [x] Refactor the meshing algorithms
+    - [x] Generate an [icosphere](https://blog.lslabs.dev/posts/generating_icosphere_with_code) instead of a UV sphere
+    - [x] Generate a [capsule](https://gamedev.stackexchange.com/questions/162426/how-to-draw-a-3d-capsule)
           instead of an open cylinder
   - [ ] Add frustrum culling: Don't render vertices outside of the camera's view
   - [x] Refactor the way that instancing is done: having to keep track of the number of spheres is a weird decision

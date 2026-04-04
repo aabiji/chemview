@@ -173,12 +173,12 @@ impl Renderer {
             shader::create_buffers(&device, &global_bind_group_layout, &GLOBAL_SHADER_VARS);
 
         let mut instances: HashMap<usize, ShapeInstance> = HashMap::new();
-        let (vertices, indices) = shape::generate_sphere_mesh(32, 32, 1.0);
+        let (vertices, indices) = shape::generate_sphere_mesh(3);
         instances.insert(
             0,
             ShapeInstance::new(&device, &instance_bind_group_layout, vertices, indices),
         );
-        let (vertices, indices) = shape::generate_cylinder_mesh(32, 1.0, 1.0);
+        let (vertices, indices) = shape::generate_uncapped_cylinder_mesh(32, 1.0, 1.0);
         instances.insert(
             1,
             ShapeInstance::new(&device, &instance_bind_group_layout, vertices, indices),
@@ -343,6 +343,11 @@ impl Renderer {
         let target_pos = Vec3::new(0.0, 0.0, 0.0);
         let (bounding_min, bounding_max) = (data.1, data.2);
         let size = bounding_max - bounding_min;
+
+        for instance in self.instances.values_mut() {
+            instance.model_matrices.clear();
+            instance.colors.clear();
+        }
 
         let offset = (bounding_min + size / 2.0) - target_pos;
         for shape in &data.0 {

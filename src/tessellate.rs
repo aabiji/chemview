@@ -109,6 +109,7 @@ impl Tessellator {
         end_color: Vec3,
         camera_front: Vec3,
         bond_type: &BondType,
+        cap_cylinders: bool,
     ) {
         let bond_radius = 0.04;
         let bond_direction = (end_pos - start_pos).normalize();
@@ -142,6 +143,21 @@ impl Tessellator {
                 color: end_color,
                 radius: bond_radius,
             });
+
+            if cap_cylinders {
+                shapes.push(Shape::Sphere {
+                    // bottom cap
+                    origin: start_pos + offset,
+                    color: start_color,
+                    radius: bond_radius,
+                });
+                shapes.push(Shape::Sphere {
+                    // top cap
+                    origin: end_pos + offset,
+                    color: end_color,
+                    radius: bond_radius,
+                });
+            }
         }
     }
 
@@ -187,6 +203,7 @@ impl Tessellator {
                 if wireframe { dst_color } else { bond_color },
                 camera_front,
                 &bond.bond_type,
+                wireframe,
             );
 
             bounding_min = bounding_min
