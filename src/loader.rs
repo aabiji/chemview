@@ -10,10 +10,6 @@ use std::path::Path;
 
 use crate::tessellate::{Atom, Bond, BondType, SecondaryStructure, SecondaryType, Structure};
 
-pub trait FileLoader: Send {
-    fn parse_file(&mut self, path: &Path) -> Result<Structure, String>;
-}
-
 fn split(lines: &str, sep: char, strip: bool) -> Vec<&str> {
     lines
         .split(sep)
@@ -28,64 +24,59 @@ fn parse<T: std::str::FromStr>(v: &Vec<&str>, index: usize) -> Result<T, String>
         .map_err(|_| String::from("Invalid value"))
 }
 
-pub struct SDFLoader {}
+pub fn parse_sdf_file(path: &Path) -> Result<Structure, String> {
+    let contents = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
+    let lines = split(&contents, '\n', false);
 
-impl FileLoader for SDFLoader {
-    fn parse_file(&mut self, path: &Path) -> Result<Structure, String> {
-        let contents = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
-        let lines = split(&contents, '\n', false);
+    let count_line = parse::<String>(&lines, 3)?;
+    let count_fields = split(&count_line, ' ', true);
+    let num_atoms = parse::<usize>(&count_fields, 0)?;
+    let num_bonds = parse::<usize>(&count_fields, 1)?;
 
-        let count_line = parse::<String>(&lines, 3)?;
-        let count_fields = split(&count_line, ' ', true);
-        let num_atoms = parse::<usize>(&count_fields, 0)?;
-        let num_bonds = parse::<usize>(&count_fields, 1)?;
+    let mut atoms: Vec<Atom> = Vec::new();
+    let mut bonds: Vec<Bond> = Vec::new();
 
-        let mut atoms: Vec<Atom> = Vec::new();
-        let mut bonds: Vec<Bond> = Vec::new();
-
-        for i in 0..num_atoms {
-            let line = parse::<String>(&lines, 4 + i)?;
-            let fields = split(&line, ' ', true);
-            atoms.push(Atom {
-                chain_id: String::new(),
-                sequence_id: String::new(),
-                component_name: String::new(),
-                atom_id: String::new(),
-                is_ligand: true,
-                position: Vec3::new(
-                    parse::<f32>(&fields, 0)?,
-                    parse::<f32>(&fields, 1)?,
-                    parse::<f32>(&fields, 2)?,
-                ),
-                element: parse::<String>(&fields, 3)?,
-            });
-        }
-
-        for i in 0..num_bonds {
-            let line = parse::<String>(&lines, 4 + num_atoms + i)?;
-            let fields = split(&line, ' ', true);
-            bonds.push(Bond {
-                src: parse::<usize>(&fields, 0)? - 1,
-                dst: parse::<usize>(&fields, 1)? - 1,
-                bond_type: match parse::<usize>(&fields, 2)? {
-                    1 => BondType::Single,
-                    2 => BondType::Double,
-                    3 => BondType::Triple,
-                    m => return Err(format!("Unreconized bond type: {m}")),
-                },
-            });
-        }
-
-        Ok(Structure {
-            atoms,
-            bonds,
-            ..Default::default()
-        })
+    for i in 0..num_atoms {
+        let line = parse::<String>(&lines, 4 + i)?;
+        let fields = split(&line, ' ', true);
+        atoms.push(Atom {
+            chain_id: String::new(),
+            sequence_id: String::new(),
+            component_name: String::new(),
+            atom_id: String::new(),
+            position: Vec3::new(
+                parse::<f32>(&fields, 0)?,
+                parse::<f32>(&fields, 1)?,
+                parse::<f32>(&fields, 2)?,
+            ),
+            element: parse::<String>(&fields, 3)?,
+        });
     }
+
+    for i in 0..num_bonds {
+        let line = parse::<String>(&lines, 4 + num_atoms + i)?;
+        let fields = split(&line, ' ', true);
+        bonds.push(Bond {
+            src: parse::<usize>(&fields, 0)? - 1,
+            dst: parse::<usize>(&fields, 1)? - 1,
+            bond_type: match parse::<usize>(&fields, 2)? {
+                1 => BondType::Single,
+                2 => BondType::Double,
+                3 => BondType::Triple,
+                m => return Err(format!("Unreconized bond type: {m}")),
+            },
+        });
+    }
+
+    Ok(Structure {
+        atoms,
+        bonds,
+        ..Default::default()
+    })
 }
 
-#[derive(Debug, Clone)]
-pub enum Token {
+#[derive(Clone)]
+enum Token {
     TableStart,
     Label((String, String)), // block name, attribute name
     Value(String),
@@ -107,7 +98,7 @@ impl Token {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 struct Table {
     // keys are sorted by insertion order
     columns: IndexMap<String, Vec<Token>>,
@@ -130,7 +121,6 @@ impl Table {
     }
 }
 
-#[derive(Default, Debug)]
 struct DataBlock {
     tables: HashMap<String, Table>,
     start_offset: usize,
@@ -138,17 +128,115 @@ struct DataBlock {
 }
 
 #[derive(Default)]
+struct Strand {
+    seq_offset: usize,
+    atoms: HashMap<String, usize>, // atom id to indexes
+}
+
+// (chain_id, seq_id) to strand
+type Component = HashMap<(String, String), Strand>;
+
+// Generates all (chain, transform) pairs needed to build a biological assembly
+// from an mmCIF `oper_expression` and `asym_id_list`.
+//
+// The oper_expression describes which operations from `pdbx_struct_oper_list` to apply,
+// in one of three forms:
+//   - "1"         → single operation
+//   - "1,2,3"     → each operation independently (one copy of chains per op)
+//   - "(1,2)(3,4)"→ Cartesian product: one copy per combination (1×3, 1×4, 2×3, 2×4)
+//
+// Ranges like "(1-60)" are expanded into the full list of operation IDs.
+// For product expressions, each combination is multiplied into a single matrix.
+// Every resulting matrix is paired with every chain in `chains`.
+fn generate_chain_copies(
+    expression: &str,
+    chains: &Vec<String>,
+    transforms: &HashMap<usize, Mat4>,
+) -> Vec<(String, Mat4)> {
+    let is_sequence = !expression.starts_with("(");
+
+    let groups = if is_sequence {
+        // Sequence form "1,2,3": wrap each ID in its own group so the
+        // Cartesian product below treats them as independent operations.
+        expression
+            .split(',')
+            .map(|s| vec![s.parse::<usize>().unwrap()])
+            .collect()
+    } else {
+        // Parenthesized form "(1,2)(3-5)": each (...) is one group.
+        // Strip the leading "(" (+1) and stop before the closing ")".
+        // Ranges like "3-5" are expanded to [3, 4, 5].
+        let mut i = 0;
+        let mut lists = Vec::new();
+
+        while i < expression.len() {
+            let end = i + expression[i..].find(')').unwrap();
+            let group = &expression[i + 1..end];
+
+            let is_range = group.contains("-");
+            let values: Vec<usize> = group
+                .split(if is_range { "-" } else { "," })
+                .map(|s| s.parse::<usize>().unwrap())
+                .collect();
+
+            lists.push(if is_range {
+                (values[0]..=values[1]).collect::<Vec<usize>>()
+            } else {
+                values
+            });
+            i = end + 1;
+        }
+
+        lists
+    };
+
+    // Build the Cartesian product across all groups, then fold each
+    // combination into a single matrix via left-to-right multiplication.
+    // A sequence "1,2,3" has groups [[1],[2],[3]] so no multiplication occurs.
+    let mut chain_copies: Vec<(String, Mat4)> = Vec::new();
+
+    for combo in groups.into_iter().multi_cartesian_product() {
+        let mut result = Mat4::IDENTITY;
+        for id in &combo {
+            result *= transforms[id]
+        }
+
+        for chain in chains {
+            chain_copies.push((chain.clone(), result));
+        }
+    }
+
+    chain_copies
+}
+
 pub struct MMCIFLoader {
     data_blocks: HashMap<String, DataBlock>,
     mmap: Option<Mmap>,
 }
 
 impl MMCIFLoader {
-    pub fn open_file(&mut self, path: &Path) -> Result<(), String> {
+    pub fn parse(path: &Path) -> Result<Structure, String> {
         let file = File::open(path).map_err(|e| e.to_string())?;
-        self.mmap = Some(unsafe { MmapOptions::new().map(&file).map_err(|e| e.to_string())? });
-        self.scan_datablocks();
-        Ok(())
+
+        let mut loader = MMCIFLoader {
+            mmap: Some(unsafe { MmapOptions::new().map(&file).map_err(|e| e.to_string())? }),
+            data_blocks: HashMap::new(),
+        };
+
+        loader.scan_datablocks();
+        loader.parse_block(None)?;
+
+        let mut atoms = loader.parse_atoms()?;
+        let components = loader.group_atoms(&mut atoms);
+        let (bonds, secondary) = loader.parse_secondary(&components)?;
+        let chain_copies = loader.parse_chain_copies()?;
+
+        Ok(Structure {
+            atoms,
+            bonds,
+            secondary,
+            chain_copies,
+        })
     }
 
     // First pass: scan the file for offsets to data blocks
@@ -331,95 +419,8 @@ impl MMCIFLoader {
             .get(table_id)
             .ok_or(format!("{table_id} not found in {key}"))
     }
-}
 
-// Generates all (chain, transform) pairs needed to build a biological assembly
-// from an mmCIF `oper_expression` and `asym_id_list`.
-//
-// The oper_expression describes which operations from `pdbx_struct_oper_list` to apply,
-// in one of three forms:
-//   - "1"         → single operation
-//   - "1,2,3"     → each operation independently (one copy of chains per op)
-//   - "(1,2)(3,4)"→ Cartesian product: one copy per combination (1×3, 1×4, 2×3, 2×4)
-//
-// Ranges like "(1-60)" are expanded into the full list of operation IDs.
-// For product expressions, each combination is multiplied into a single matrix.
-// Every resulting matrix is paired with every chain in `chains`.
-fn generate_chain_copies(
-    expression: &str,
-    chains: &Vec<String>,
-    transforms: &HashMap<usize, Mat4>,
-) -> Vec<(String, Mat4)> {
-    let is_sequence = !expression.starts_with("(");
-
-    let groups = if is_sequence {
-        // Sequence form "1,2,3": wrap each ID in its own group so the
-        // Cartesian product below treats them as independent operations.
-        expression
-            .split(',')
-            .map(|s| vec![s.parse::<usize>().unwrap()])
-            .collect()
-    } else {
-        // Parenthesized form "(1,2)(3-5)": each (...) is one group.
-        // Strip the leading "(" (+1) and stop before the closing ")".
-        // Ranges like "3-5" are expanded to [3, 4, 5].
-        let mut i = 0;
-        let mut lists = Vec::new();
-
-        while i < expression.len() {
-            let end = i + expression[i..].find(')').unwrap();
-            let group = &expression[i + 1..end];
-
-            let is_range = group.contains("-");
-            let values: Vec<usize> = group
-                .split(if is_range { "-" } else { "," })
-                .map(|s| s.parse::<usize>().unwrap())
-                .collect();
-
-            lists.push(if is_range {
-                (values[0]..=values[1]).collect::<Vec<usize>>()
-            } else {
-                values
-            });
-            i = end + 1;
-        }
-
-        lists
-    };
-
-    // Build the Cartesian product across all groups, then fold each
-    // combination into a single matrix via left-to-right multiplication.
-    // A sequence "1,2,3" has groups [[1],[2],[3]] so no multiplication occurs.
-    let mut chain_copies: Vec<(String, Mat4)> = Vec::new();
-
-    for combo in groups.into_iter().multi_cartesian_product() {
-        let mut result = Mat4::IDENTITY;
-        for id in &combo {
-            result *= transforms[id]
-        }
-
-        for chain in chains {
-            chain_copies.push((chain.clone(), result));
-        }
-    }
-
-    chain_copies
-}
-
-#[derive(Default, Debug)]
-struct Strand {
-    seq_offset: usize,
-    atoms: HashMap<String, usize>, // atom id to indexes
-}
-
-// (chain_id, seq_id) to strand
-type Component = HashMap<(String, String), Strand>;
-
-impl FileLoader for MMCIFLoader {
-    fn parse_file(&mut self, path: &Path) -> Result<Structure, String> {
-        self.open_file(path)?;
-        self.parse_block(None)?;
-
+    fn parse_atoms(&mut self) -> Result<Vec<Atom>, String> {
         let mut atoms: Vec<Atom> = Vec::new();
 
         // Parse atoms
@@ -434,7 +435,6 @@ impl FileLoader for MMCIFLoader {
                     component_name: t.string("comp_id", i)?,
                     atom_id: t.string("atom_id", i)?,
                     element: t.string("type_symbol", i)?,
-                    is_ligand: true,
                     position: glam::Vec3::new(
                         t.f32("pdbx_model_Cartn_x_ideal", i)?,
                         t.f32("pdbx_model_Cartn_y_ideal", i)?,
@@ -452,7 +452,6 @@ impl FileLoader for MMCIFLoader {
                     component_name: t.string("label_comp_id", i)?,
                     atom_id: t.string("label_atom_id", i)?,
                     element: t.string("type_symbol", i)?,
-                    is_ligand: t.string("group_PDB", i)? == "HETATM",
                     position: glam::Vec3::new(
                         t.f32("Cartn_x", i)?,
                         t.f32("Cartn_y", i)?,
@@ -462,6 +461,10 @@ impl FileLoader for MMCIFLoader {
             }
         }
 
+        Ok(atoms)
+    }
+
+    fn group_atoms(&mut self, atoms: &mut Vec<Atom>) -> HashMap<String, Component> {
         // Sort atoms by chain, sequence id and component name
         atoms.sort_by(|a: &Atom, b: &Atom| {
             // Ensure that sequences are sorted in ascending order, not lexographic order
@@ -495,6 +498,13 @@ impl FileLoader for MMCIFLoader {
             prev_chain_id = atom.chain_id.clone();
         }
 
+        components
+    }
+
+    fn parse_secondary(
+        &mut self,
+        components: &HashMap<String, Component>,
+    ) -> Result<(Vec<Bond>, Vec<SecondaryStructure>), String> {
         // Parse bonds
         let mut bonds: Vec<Bond> = Vec::new();
         if let Ok(t) = self.get_table(None, "chem_comp_bond") {
@@ -582,6 +592,10 @@ impl FileLoader for MMCIFLoader {
             }
         }
 
+        Ok((bonds, secondary))
+    }
+
+    fn parse_chain_copies(&mut self) -> Result<Vec<(String, Mat4)>, String> {
         // Parse assemblies
         let mut transforms: HashMap<usize, Mat4> = HashMap::new();
 
@@ -630,11 +644,6 @@ impl FileLoader for MMCIFLoader {
             }
         }
 
-        Ok(Structure {
-            atoms,
-            bonds,
-            secondary,
-            chain_copies,
-        })
+        Ok(chain_copies)
     }
 }

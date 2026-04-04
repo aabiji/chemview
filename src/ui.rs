@@ -112,6 +112,14 @@ impl DebugUI {
                             state.view_changed |= combo_ui
                                 .selectable_value(
                                     &mut state.view_type,
+                                    RenderStyle::Ribbon,
+                                    RenderStyle::Ribbon.to_string(),
+                                )
+                                .clicked();
+
+                            state.view_changed |= combo_ui
+                                .selectable_value(
+                                    &mut state.view_type,
                                     RenderStyle::SpaceFilling,
                                     RenderStyle::SpaceFilling.to_string(),
                                 )

@@ -14,11 +14,10 @@ pub struct Atom {
     pub component_name: String,
     pub atom_id: String,
     pub element: String,
-    pub is_ligand: bool,
     pub position: Vec3,
 }
 
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Copy, Clone)]
 pub enum BondType {
     #[default]
     Single,
@@ -27,28 +26,28 @@ pub enum BondType {
     HBond,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub enum SecondaryType {
     #[default]
     AlphaHelix,
     BetaSheet,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct Bond {
     pub src: usize,
     pub dst: usize,
     pub bond_type: BondType,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct SecondaryStructure {
     pub struct_type: SecondaryType,
     pub start: usize,
     pub end: usize,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct Structure {
     pub atoms: Vec<Atom>,
     pub bonds: Vec<Bond>,
@@ -65,6 +64,7 @@ struct ElementInfo {
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum RenderStyle {
+    Ribbon,
     Wireframe,
     BallAndStick,
     SpaceFilling,
@@ -73,6 +73,7 @@ pub enum RenderStyle {
 impl Display for RenderStyle {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
+            RenderStyle::Ribbon => write!(f, "Ribbon"),
             RenderStyle::Wireframe => write!(f, "Wireframe"),
             RenderStyle::BallAndStick => write!(f, "Ball and Stick"),
             RenderStyle::SpaceFilling => write!(f, "Space filling"),
@@ -243,6 +244,22 @@ impl Tessellator {
         (shapes, bounding_max, bounding_max)
     }
 
+    fn ribbon(&mut self, structure: &Structure) -> (Vec<Shape>, Vec3, Vec3) {
+        // Get backbone atom positions
+        let chain = &structure.secondary[0];
+        let mut positions: Vec<Vec3> = Vec::new();
+        for i in chain.start..chain.end {
+            let is_alpha_carbon = structure.atoms[i].atom_id.to_lowercase() == "ca";
+            if is_alpha_carbon {
+                positions.push(structure.atoms[i].position);
+            }
+        }
+
+        dbg!(positions);
+
+        (Vec::new(), Vec3::ZERO, Vec3::ZERO)
+    }
+
     pub fn tessellate(
         &mut self,
         structure: &Structure,
@@ -250,6 +267,7 @@ impl Tessellator {
         view: &RenderStyle,
     ) -> (Vec<Shape>, Vec3, Vec3) {
         match view {
+            RenderStyle::Ribbon => self.ribbon(structure),
             RenderStyle::BallAndStick | RenderStyle::Wireframe => {
                 self.wireframe(structure, camera_front, view == &RenderStyle::Wireframe)
             }

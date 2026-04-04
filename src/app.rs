@@ -1,5 +1,4 @@
 use glam::Vec3;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -14,7 +13,7 @@ use winit::{
 };
 
 use crate::camera::Action;
-use crate::loader::{FileLoader, MMCIFLoader, SDFLoader};
+use crate::loader::{MMCIFLoader, parse_sdf_file};
 use crate::renderer::Renderer;
 use crate::shape::Shape;
 use crate::tessellate::{RenderStyle, Structure, Tessellator};
@@ -30,7 +29,6 @@ enum Message {
 
 // Parse files and tessellate structures on a separate thread, as to not block the rendering thread.
 fn run_loading_thread(rx_loader: Receiver<Message>, tx_app: Sender<Message>) {
-    let mut loaders: HashMap<String, Box<dyn FileLoader>> = HashMap::new();
     let mut tessellator = Tessellator::new().unwrap();
     let mut structure = Structure::default();
 
@@ -42,16 +40,12 @@ fn run_loading_thread(rx_loader: Receiver<Message>, tx_app: Sender<Message>) {
                     .map(|s| s.to_str().unwrap())
                     .ok_or("Unknown file format")?;
 
-                if !loaders.contains_key(extension) {
-                    let obj: Box<dyn FileLoader> = match extension {
-                        "sdf" => Box::new(SDFLoader {}),
-                        "cif" => Box::new(MMCIFLoader::default()),
-                        _ => return Err(String::from("Unknown file type")),
-                    };
-                    loaders.insert(extension.to_string(), obj);
-                }
+                structure = match extension {
+                    "sdf" => parse_sdf_file(&path)?,
+                    "cif" => MMCIFLoader::parse(&path)?,
+                    value => return Err(format!("Unknown file format {value}")),
+                };
 
-                structure = loaders.get_mut(extension).unwrap().parse_file(&path)?;
                 let _ = tx_app.send(Message::LoadSuccess);
             }
 
@@ -92,7 +86,7 @@ impl App {
                 file_path: String::from("/home/aabiji/dev/chemview/data/mmcif/28VP.cif"),
                 path_changed: false,
                 error_message: None,
-                view_type: RenderStyle::Wireframe,
+                view_type: RenderStyle::Ribbon,
                 view_changed: false,
                 fps: 0.0,
             },
