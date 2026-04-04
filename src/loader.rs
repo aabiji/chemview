@@ -576,21 +576,21 @@ impl MMCIFLoader {
         }
 
         // Parse sheets
-        if let Ok(t) = self.get_table(None, "struct_sheet_range") {
-            for i in 0..t.num_rows {
-                let comp_start = t.string("beg_label_comp_id", i)?;
-                let chain_start = t.string("beg_label_asym_id", i)?;
-                let seq_start = t.string("beg_label_seq_id", i)?;
-                let comp_end = t.string("end_label_comp_id", i)?;
-                let chain_end = t.string("end_label_asym_id", i)?;
-                let seq_end = t.string("end_label_seq_id", i)?;
-                secondary.push(SecondaryStructure {
-                    struct_type: SecondaryType::BetaSheet,
-                    start: components[&comp_start][&(chain_start, seq_start)].seq_offset,
-                    end: components[&comp_end][&(chain_end, seq_end)].seq_offset,
-                });
-            }
-        }
+        //if let Ok(t) = self.get_table(None, "struct_sheet_range") {
+        //    for i in 0..t.num_rows {
+        //        let comp_start = t.string("beg_label_comp_id", i)?;
+        //        let chain_start = t.string("beg_label_asym_id", i)?;
+        //        let seq_start = t.string("beg_label_seq_id", i)?;
+        //        let comp_end = t.string("end_label_comp_id", i)?;
+        //        let chain_end = t.string("end_label_asym_id", i)?;
+        //        let seq_end = t.string("end_label_seq_id", i)?;
+        //        secondary.push(SecondaryStructure {
+        //            struct_type: SecondaryType::BetaSheet,
+        //            start: components[&comp_start][&(chain_start, seq_start)].seq_offset,
+        //            end: components[&comp_end][&(chain_end, seq_end)].seq_offset,
+        //        });
+        //    }
+        //}
 
         Ok((bonds, secondary))
     }

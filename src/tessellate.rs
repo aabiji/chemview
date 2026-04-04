@@ -5,6 +5,7 @@ use std::f32;
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 
+use crate::ribbon::generate_curve;
 use crate::shape::Shape;
 
 #[derive(Default, Debug)]
@@ -245,19 +246,38 @@ impl Tessellator {
     }
 
     fn ribbon(&mut self, structure: &Structure) -> (Vec<Shape>, Vec3, Vec3) {
-        // Get backbone atom positions
-        let chain = &structure.secondary[0];
-        let mut positions: Vec<Vec3> = Vec::new();
-        for i in chain.start..chain.end {
-            let is_alpha_carbon = structure.atoms[i].atom_id.to_lowercase() == "ca";
-            if is_alpha_carbon {
-                positions.push(structure.atoms[i].position);
-            }
-        }
+        let (mut global_min, mut global_max) = (Vec3::ZERO, Vec3::ZERO);
 
-        dbg!(positions);
+        let shapes: Vec<Shape> = structure
+            .secondary
+            .iter()
+            .map(|s| {
+                let mut points: Vec<Vec3> = Vec::new();
+                let mut min_point = Vec3::new(f32::MAX, f32::MAX, f32::MAX);
+                let mut max_point = Vec3::new(f32::MIN, f32::MIN, f32::MIN);
 
-        (Vec::new(), Vec3::ZERO, Vec3::ZERO)
+                for i in s.start..s.end {
+                    let is_alpha_carbon = structure.atoms[i].atom_id.to_lowercase() == "ca";
+                    let p = structure.atoms[i].position;
+                    min_point = min_point.min(p);
+                    max_point = max_point.max(p);
+                    if is_alpha_carbon {
+                        points.push(p);
+                    }
+                }
+
+                global_min = global_min.min(min_point);
+                global_max = global_min.max(max_point);
+
+                Shape::Curve {
+                    points,
+                    min_point,
+                    max_point,
+                }
+            })
+            .collect();
+
+        (shapes, global_min, global_max)
     }
 
     pub fn tessellate(
