@@ -1,3 +1,3 @@
-Protein visualizer built in Rust and wgpu.
+A molecule visualizer built in Rust with wgpu, supporting SDF and mmCIF files.
 
 ![Screenshot](screenshot.png)

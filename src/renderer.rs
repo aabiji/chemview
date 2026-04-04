@@ -343,6 +343,7 @@ impl Renderer {
         let target_pos = Vec3::new(0.0, 0.0, 0.0);
         let (bounding_min, bounding_max) = (data.1, data.2);
         let size = bounding_max - bounding_min;
+        self.controller.fit_in_view(size);
 
         for instance in self.instances.values_mut() {
             instance.model_matrices.clear();

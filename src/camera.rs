@@ -13,7 +13,7 @@ pub enum Action {
 
 struct Camera {
     pub front: Vec3,
-    position: Vec3,
+    pub position: Vec3,
     field_of_view: f32,
 
     pitch: f32,
@@ -33,16 +33,12 @@ impl Default for Camera {
 }
 
 impl Camera {
-    pub fn position(&self) -> [f32; 4] {
-        [self.position.x, self.position.y, self.position.z, 0.0]
-    }
-
-    pub fn projection(&self, aspect_ratio: f32) -> [[f32; 4]; 4] {
+    fn projection(&self, aspect_ratio: f32) -> [[f32; 4]; 4] {
         let fov = self.field_of_view.to_radians();
         Mat4::perspective_rh(fov, aspect_ratio, 0.1, 100.0).to_cols_array_2d()
     }
 
-    pub fn view(&self) -> [[f32; 4]; 4] {
+    fn view(&self) -> [[f32; 4]; 4] {
         Mat4::look_at_rh(self.position, self.position + self.front, Vec3::Y).to_cols_array_2d()
     }
 
@@ -107,11 +103,24 @@ impl CameraController {
         aspect_ratio: f32,
     ) -> ([f32; 4], [[f32; 4]; 4], [[f32; 4]; 4], [[f32; 4]; 4]) {
         (
-            self.camera.position(),
+            [
+                self.camera.position.x,
+                self.camera.position.y,
+                self.camera.position.z,
+                0.0,
+            ],
             self.camera.projection(aspect_ratio),
             self.camera.view(),
             self.camera.rotation_matrix(),
         )
+    }
+
+    pub fn fit_in_view(&mut self, size: Vec3) {
+        // Find the largest width/height/depth and back up enough so it
+        // fits within the vertical field of view
+        let largest_extent = size.x.max(size.y).max(size.z);
+        let distance = (largest_extent / 2.0) / (self.camera.field_of_view / 2.0).tan();
+        self.camera.position = Vec3::new(0.0, 0.0, -distance * 1.5);
     }
 
     pub fn is_active(&self) -> bool {
