@@ -8,6 +8,7 @@
 - [What are proteins?](https://chem.libretexts.org/Bookshelves/Introductory_Chemistry/Introduction_to_Organic_and_Biochemistry_(Malik)/07%3A_Proteins/7.01%3A_What_are_proteins)
 - [Secondary Structure and Loops](https://bio.libretexts.org/Bookshelves/Biochemistry/Fundamentals_of_Biochemistry_(Jakubowski_and_Flatt)/01%3A_Unit_I-_Structure_and_Catalysis/04%3A_The_Three-Dimensional_Structure_of_Proteins/4.02%3A_Secondary_Structure_and_Loops)
 - [Generating an icosphere with code](https://blog.lslabs.dev/posts/generating_icosphere_with_code)
+- [Catmull-Rom Splines in Game Development](https://andrewhungblog.wordpress.com/2017/03/03/catmull-rom-splines-in-plain-english/)
 - [ProteinShader: Illustrative rendering of macromolecules](https://link.springer.com/article/10.1186/1472-6807-9-19)
 
 ---

@@ -5,8 +5,7 @@ use std::f32;
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 
-use crate::ribbon::generate_curve;
-use crate::shape::Shape;
+use crate::shape::{Shape, Vertex, generate_curve_mesh};
 
 #[derive(Default, Debug)]
 pub struct Atom {
@@ -82,19 +81,20 @@ impl Display for RenderStyle {
     }
 }
 
+pub struct TesselateOutput {
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
+    pub shapes: Vec<Shape>,
+    pub bounding_min: Vec3,
+    pub bounding_max: Vec3,
+}
+
 pub struct Tessellator {
     element_db: HashMap<String, ElementInfo>,
 }
 
 impl Tessellator {
     pub fn new() -> Result<Tessellator, String> {
-        /*
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("data/mmcif/chemical-component-dictionary.cif");
-        let mut ccd = MMCIFLoader::default();
-        ccd.open_file(&path)?;
-        */
-
         let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let info_path = base.join("data/element_data.json");
         let contents = std::fs::read_to_string(info_path).map_err(|err| err.to_string())?;
@@ -168,7 +168,7 @@ impl Tessellator {
         structure: &Structure,
         camera_front: Vec3,
         wireframe: bool,
-    ) -> (Vec<Shape>, Vec3, Vec3) {
+    ) -> TesselateOutput {
         let mut sphere_set: HashSet<Shape> = HashSet::new();
         let mut cylinders: Vec<Shape> = Vec::new();
         let mut bounding_min = Vec3::new(f32::MAX, f32::MAX, f32::MAX);
@@ -223,10 +223,16 @@ impl Tessellator {
 
         let mut shapes: Vec<Shape> = sphere_set.iter().cloned().collect();
         shapes.append(&mut cylinders);
-        (shapes, bounding_min, bounding_max)
+        TesselateOutput {
+            vertices: Vec::new(),
+            indices: Vec::new(),
+            shapes,
+            bounding_min,
+            bounding_max,
+        }
     }
 
-    fn space_filling(&mut self, structure: &Structure) -> (Vec<Shape>, Vec3, Vec3) {
+    fn space_filling(&mut self, structure: &Structure) -> TesselateOutput {
         let mut bounding_min = Vec3::new(f32::MAX, f32::MAX, f32::MAX);
         let mut bounding_max = Vec3::new(f32::MIN, f32::MIN, f32::MIN);
         let mut shapes: Vec<Shape> = Vec::new();
@@ -242,42 +248,51 @@ impl Tessellator {
             shapes.push(shape);
         }
 
-        (shapes, bounding_max, bounding_max)
+        TesselateOutput {
+            shapes,
+            bounding_min,
+            bounding_max,
+            vertices: Vec::new(),
+            indices: Vec::new(),
+        }
     }
 
-    fn ribbon(&mut self, structure: &Structure) -> (Vec<Shape>, Vec3, Vec3) {
-        let (mut global_min, mut global_max) = (Vec3::ZERO, Vec3::ZERO);
+    fn ribbon(&mut self, structure: &Structure) -> TesselateOutput {
+        let mut bounding_min = Vec3::new(f32::MAX, f32::MAX, f32::MAX);
+        let mut bounding_max = Vec3::new(f32::MIN, f32::MIN, f32::MIN);
 
-        let shapes: Vec<Shape> = structure
-            .secondary
-            .iter()
-            .map(|s| {
-                let mut points: Vec<Vec3> = Vec::new();
-                let mut min_point = Vec3::new(f32::MAX, f32::MAX, f32::MAX);
-                let mut max_point = Vec3::new(f32::MIN, f32::MIN, f32::MIN);
+        let mut vertices: Vec<Vertex> = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
 
-                for i in s.start..s.end {
-                    let is_alpha_carbon = structure.atoms[i].atom_id.to_lowercase() == "ca";
-                    let p = structure.atoms[i].position;
-                    min_point = min_point.min(p);
-                    max_point = max_point.max(p);
-                    if is_alpha_carbon {
-                        points.push(p);
-                    }
+        for s in &structure.secondary {
+            let mut points: Vec<Vec3> = Vec::new();
+
+            // Get the positions of the backbone atoms
+            for i in s.start..s.end {
+                let is_alpha_carbon = structure.atoms[i].atom_id.to_lowercase() == "ca";
+                let p = structure.atoms[i].position;
+
+                bounding_min = bounding_min.min(p);
+                bounding_max = bounding_max.max(p);
+
+                if is_alpha_carbon {
+                    points.push(p);
                 }
+            }
 
-                global_min = global_min.min(min_point);
-                global_max = global_min.max(max_point);
+            let color = Vec3::new(0.25, 0.5, 1.0);
+            let (v, idx) = generate_curve_mesh(&points, vertices.len(), 3, color);
+            vertices.extend(v.iter());
+            indices.extend(idx.iter());
+        }
 
-                Shape::Curve {
-                    points,
-                    min_point,
-                    max_point,
-                }
-            })
-            .collect();
-
-        (shapes, global_min, global_max)
+        TesselateOutput {
+            vertices,
+            indices,
+            bounding_min,
+            bounding_max,
+            shapes: Vec::new(),
+        }
     }
 
     pub fn tessellate(
@@ -285,7 +300,7 @@ impl Tessellator {
         structure: &Structure,
         camera_front: Vec3,
         view: &RenderStyle,
-    ) -> (Vec<Shape>, Vec3, Vec3) {
+    ) -> TesselateOutput {
         match view {
             RenderStyle::Ribbon => self.ribbon(structure),
             RenderStyle::BallAndStick | RenderStyle::Wireframe => {

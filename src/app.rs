@@ -15,15 +15,14 @@ use winit::{
 use crate::camera::Action;
 use crate::loader::{MMCIFLoader, parse_sdf_file};
 use crate::renderer::Renderer;
-use crate::shape::Shape;
-use crate::tessellate::{RenderStyle, Structure, Tessellator};
+use crate::tessellate::{RenderStyle, Structure, TesselateOutput, Tessellator};
 use crate::ui::UIState;
 
 enum Message {
     LoadFileRequest(PathBuf),
     LoadSuccess,
     TessRequest((RenderStyle, Vec3)),
-    TessResponse((Vec<Shape>, Vec3, Vec3)),
+    TessResponse(TesselateOutput),
     ErrResponse(String),
 }
 

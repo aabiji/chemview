@@ -245,7 +245,7 @@ impl MMCIFLoader {
         let bytes: &[u8] = self.mmap.as_ref().unwrap();
 
         let mut offsets: Vec<usize> = find_iter(bytes, needle.as_bytes())
-            .filter(|i| *i - 0 == 0 || bytes[i - 1] == b'\n')
+            .filter(|i| *i == 0 || bytes[i - 1] == b'\n')
             .collect();
         offsets.push(bytes.len());
 
@@ -464,7 +464,7 @@ impl MMCIFLoader {
         Ok(atoms)
     }
 
-    fn group_atoms(&mut self, atoms: &mut Vec<Atom>) -> HashMap<String, Component> {
+    fn group_atoms(&mut self, atoms: &mut [Atom]) -> HashMap<String, Component> {
         // Sort atoms by chain, sequence id and component name
         atoms.sort_by(|a: &Atom, b: &Atom| {
             // Ensure that sequences are sorted in ascending order, not lexographic order

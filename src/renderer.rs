@@ -1,78 +1,27 @@
 use bytemuck::offset_of;
-use glam::{Mat4, Quat, Vec3};
+use glam::Vec3;
 use std::borrow::Cow;
-use std::collections::HashMap;
-use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::SystemTime;
 
 use wgpu::{
-    BindGroup, BindGroupLayout, Buffer, BufferAddress, BufferUsages, CommandEncoder,
-    DepthBiasState, DepthStencilState, Device, DeviceDescriptor, Extent3d, FragmentState, LoadOp,
-    MultisampleState, Operations, PipelineLayoutDescriptor, PrimitiveState, Queue,
-    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
-    StencilState, Surface, TextureDescriptor, TextureFormat, TextureUsages, TextureView,
-    TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState,
-    VertexStepMode,
+    BindGroup, Buffer, BufferAddress, BufferUsages, CommandEncoder, DepthBiasState,
+    DepthStencilState, Device, DeviceDescriptor, Extent3d, FragmentState, LoadOp, MultisampleState,
+    Operations, PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, StencilState, Surface,
+    TextureDescriptor, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
     util::{BufferInitDescriptor, DeviceExt},
 };
 use winit::{dpi::PhysicalSize, window::Window};
 
+use crate::camera::CameraController;
 use crate::shader;
-use crate::shape::{self, Shape, Vertex};
+use crate::shape::{RawShape, Shape, Vertex};
+use crate::tessellate::TesselateOutput;
 use crate::ui::{DebugUI, UIState};
-use crate::{
-    camera::CameraController,
-    shader::{GLOBAL_SHADER_VARS, INSTANCE_SHADER_VARS},
-};
-
-struct ShapeInstance {
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    bind_group: BindGroup,
-    buffers: Vec<Buffer>,
-    num_indices: u32,
-
-    // For each instance
-    model_matrices: Vec<[[f32; 4]; 4]>,
-    colors: Vec<[f32; 4]>,
-}
-
-impl ShapeInstance {
-    fn new(
-        device: &Device,
-        layout: &BindGroupLayout,
-        vertices: Vec<Vertex>,
-        indices: Vec<u32>,
-    ) -> Self {
-        let (buffers, bind_group) = shader::create_buffers(device, layout, &INSTANCE_SHADER_VARS);
-
-        Self {
-            vertex_buffer: device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("Vertex buffer (sphere)"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: BufferUsages::VERTEX,
-            }),
-
-            index_buffer: device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("Index buffer (sphere)"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: BufferUsages::INDEX,
-            }),
-            buffers,
-            bind_group,
-            num_indices: indices.len() as u32,
-            model_matrices: Vec::new(),
-            colors: Vec::new(),
-        }
-    }
-
-    fn ranges(&self) -> (Range<u32>, Range<u32>) {
-        (0..self.num_indices, 0..self.model_matrices.len() as u32)
-    }
-}
 
 // The maximum size in bytes of a storage buffer will be 10 MB
 const DEPTH_TEXTURE_FORMAT: TextureFormat = TextureFormat::Depth24Plus;
@@ -109,13 +58,18 @@ pub struct Renderer {
 
     device: Device,
     queue: Queue,
-    render_pipeline: RenderPipeline,
 
+    raytrace_pipeline: RenderPipeline,
+    geometry_pipeline: RenderPipeline,
+
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
+    shader_vars: Vec<Buffer>,
     bind_group: BindGroup,
-    buffers: Vec<Buffer>,
+    num_indices: u32,
+
     msaa_texture: TextureView,
     depth_texture: TextureView,
-    instances: HashMap<usize, ShapeInstance>,
 
     pub ui: DebugUI,
     pub controller: CameraController,
@@ -127,6 +81,11 @@ pub struct Renderer {
 }
 
 impl Renderer {
+    /*
+    Shapes such as spheres and cylinders are rendered using raytraceing done in the fragment shader,
+    while curves are rendred using vertices and indices. This is because curves can't be instanced.
+    So there are two rendering pipelines and two shaders, one for raytraceing and one for geometry rendering.
+    */
     pub async fn new(window: Arc<Window>) -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         let adapter = instance
@@ -147,6 +106,7 @@ impl Renderer {
             label: Some("Main shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&shader_source)),
         });
+        let (bind_group_layout, bind_group, shader_vars) = shader::create_shader_vars(&device);
 
         let msaa_texture = create_texture(
             &device,
@@ -163,26 +123,18 @@ impl Renderer {
             window_size.height,
             "Depth texture",
         );
-        let global_bind_group_layout =
-            shader::create_bind_group_layout(&device, &GLOBAL_SHADER_VARS);
 
-        let instance_bind_group_layout =
-            shader::create_bind_group_layout(&device, &INSTANCE_SHADER_VARS);
+        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Geometry vertex buffer"),
+            contents: &[0; 4], // dummy data
+            usage: BufferUsages::VERTEX,
+        });
 
-        let (global_buffers, global_bind_group) =
-            shader::create_buffers(&device, &global_bind_group_layout, &GLOBAL_SHADER_VARS);
-
-        let mut instances: HashMap<usize, ShapeInstance> = HashMap::new();
-        let (vertices, indices) = shape::generate_sphere_mesh(3);
-        instances.insert(
-            0,
-            ShapeInstance::new(&device, &instance_bind_group_layout, vertices, indices),
-        );
-        let (vertices, indices) = shape::generate_uncapped_cylinder_mesh(32, 1.0, 1.0);
-        instances.insert(
-            1,
-            ShapeInstance::new(&device, &instance_bind_group_layout, vertices, indices),
-        );
+        let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Geometry index buffer"),
+            contents: &[0; 4], // dummy data
+            usage: BufferUsages::INDEX,
+        });
 
         let vertex_buffers = [VertexBufferLayout {
             array_stride: size_of::<Vertex>() as BufferAddress,
@@ -198,25 +150,62 @@ impl Renderer {
                     offset: offset_of!(Vertex, normal) as u64,
                     shader_location: 1,
                 },
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: offset_of!(Vertex, color) as u64,
+                    shader_location: 2,
+                },
             ],
         }];
 
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Render pipeline"),
+        let raytrace_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("raytrace pipeline"),
             layout: Some(&device.create_pipeline_layout(&PipelineLayoutDescriptor {
-                label: Some("Render pipeline layout"),
-                bind_group_layouts: &[&global_bind_group_layout, &instance_bind_group_layout],
+                label: Some("Raytrace pipeline layout"),
+                bind_group_layouts: &[&bind_group_layout],
                 push_constant_ranges: &[],
             })),
             vertex: VertexState {
                 module: &shader,
-                entry_point: Some("vertex_shader"),
+                entry_point: Some("raytrace_vertex_shader"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(FragmentState {
+                module: &shader,
+                entry_point: Some("raytrace_fragment_shader"),
+                targets: &[Some(surface_format.add_srgb_suffix().into())],
+                compilation_options: Default::default(),
+            }),
+            primitive: PrimitiveState {
+                cull_mode: None,
+                ..Default::default()
+            },
+            multisample: MultisampleState {
+                count: MSAA_SAMPLE_COUNT,
+                ..MultisampleState::default()
+            },
+            cache: None,
+            multiview: None,
+            depth_stencil: None,
+        });
+
+        let geometry_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("Geometry pipeline"),
+            layout: Some(&device.create_pipeline_layout(&PipelineLayoutDescriptor {
+                label: Some("geometry pipeline layout"),
+                bind_group_layouts: &[&bind_group_layout],
+                push_constant_ranges: &[],
+            })),
+            vertex: VertexState {
+                module: &shader,
+                entry_point: Some("geometry_vertex_shader"),
                 buffers: &vertex_buffers,
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: &shader,
-                entry_point: Some("fragment_shader"),
+                entry_point: Some("geometry_fragment_shader"),
                 targets: &[Some(surface_format.add_srgb_suffix().into())],
                 compilation_options: Default::default(),
             }),
@@ -244,21 +233,20 @@ impl Renderer {
         let state = Renderer {
             window,
             window_size,
-
             device,
             queue,
-            render_pipeline,
-
-            bind_group: global_bind_group,
-            buffers: global_buffers,
+            raytrace_pipeline,
+            geometry_pipeline,
+            vertex_buffer,
+            index_buffer,
+            num_indices: 0,
+            shader_vars,
+            bind_group,
             msaa_texture,
             depth_texture,
-            instances,
-
             ui,
             controller: CameraController::default(),
             current_time: SystemTime::now(),
-
             surface,
             surface_format,
         };
@@ -303,95 +291,72 @@ impl Renderer {
         self.configure_surface();
     }
 
-    fn add_shape(&mut self, shape: &Shape) {
-        let id = match *shape {
-            Shape::Sphere { .. } => 0,
-            Shape::Cylinder { .. } => 1,
-        };
-        let batch = self.instances.get_mut(&id).unwrap();
-
-        match *shape {
-            Shape::Sphere {
-                origin,
-                color,
-                radius,
-            } => {
-                let model = Mat4::from_translation(origin) * Mat4::from_scale(Vec3::splat(radius));
-                batch.model_matrices.push(model.to_cols_array_2d());
-                batch.colors.push([color.x, color.y, color.z, 1.0]);
-            }
-            Shape::Cylinder {
-                start,
-                end,
-                color,
-                radius,
-            } => {
-                // Create a transformation matrix that orientes the cylinder from start to end
-                let direction = end - start;
-                let length = direction.length();
-                let rotation = Quat::from_rotation_arc(Vec3::Z, direction.normalize());
-                let model = Mat4::from_translation(start)
-                    * Mat4::from_quat(rotation)
-                    * Mat4::from_scale(Vec3::new(radius, radius, length));
-                batch.model_matrices.push(model.to_cols_array_2d());
-                batch.colors.push([color.x, color.y, color.z, 1.0]);
-            }
-        }
-    }
-
-    pub fn set_mesh_data(&mut self, data: &(Vec<Shape>, Vec3, Vec3)) {
-        let target_pos = Vec3::new(0.0, 0.0, 0.0);
-        let (bounding_min, bounding_max) = (data.1, data.2);
-        let size = bounding_max - bounding_min;
-        self.controller.fit_in_view(size);
-
-        for instance in self.instances.values_mut() {
-            instance.model_matrices.clear();
-            instance.colors.clear();
-        }
-
-        let offset = (bounding_min + size / 2.0) - target_pos;
-        for shape in &data.0 {
-            let mut copy = shape.clone();
-            copy.translate(offset);
-            self.add_shape(&copy);
-        }
-
-        for instance in self.instances.values() {
-            self.queue.write_buffer(
-                &instance.buffers[0],
-                0,
-                bytemuck::cast_slice(&instance.model_matrices),
-            );
-
-            self.queue.write_buffer(
-                &instance.buffers[1],
-                0,
-                bytemuck::cast_slice(&instance.colors),
-            );
-        }
-    }
-
     fn update_shader_vars(&mut self) {
         // NOTE: the indexes into self.buffer are taken from the order in which the shader
         // vars are defined in the `new` function. Make sure they match!
         let ratio = (self.window_size.width as f32) / (self.window_size.height as f32);
         let (position, projection, view, object_rotation) = self.controller.camera_state(ratio);
+        let resolution = [self.window_size.width, self.window_size.height];
 
         self.queue
-            .write_buffer(&self.buffers[0], 0, bytemuck::cast_slice(&projection));
+            .write_buffer(&self.shader_vars[0], 0, bytemuck::cast_slice(&projection));
 
         self.queue
-            .write_buffer(&self.buffers[1], 0, bytemuck::cast_slice(&view));
+            .write_buffer(&self.shader_vars[1], 0, bytemuck::cast_slice(&view));
 
         self.queue
-            .write_buffer(&self.buffers[2], 0, bytemuck::cast_slice(&object_rotation));
+            .write_buffer(&self.shader_vars[2], 0, bytemuck::cast_slice(&position));
 
         self.queue
-            .write_buffer(&self.buffers[3], 0, bytemuck::cast_slice(&position));
+            .write_buffer(&self.shader_vars[3], 0, bytemuck::cast_slice(&resolution));
+
+        self.queue.write_buffer(
+            &self.shader_vars[4],
+            0,
+            bytemuck::cast_slice(&object_rotation),
+        );
     }
 
-    fn render_shapes(
+    pub fn set_mesh_data(&mut self, out: &TesselateOutput) {
+        let target_pos = Vec3::new(0.0, 0.0, 0.0);
+        let size = out.bounding_max - out.bounding_min;
+        self.controller.fit_in_view(size);
+
+        // Set shape data
+        let offset = (out.bounding_min + size / 2.0) - target_pos;
+        let shapes: Vec<RawShape> = out
+            .shapes
+            .iter()
+            .map(|s: &Shape| s.translate(offset).raw())
+            .collect();
+        assert!(std::mem::size_of_val(&shapes) <= shader::STORAGE_BUFFER_SIZE);
+
+        self.queue
+            .write_buffer(&self.shader_vars[5], 0, bytemuck::cast_slice(&shapes));
+        self.queue.write_buffer(
+            &self.shader_vars[6],
+            0,
+            bytemuck::cast_slice(&[shapes.len() as u32]),
+        );
+
+        // Set geometry buffesr
+        self.num_indices = out.indices.len() as u32;
+        if self.num_indices > 0 {
+            self.vertex_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("Geometry vertex buffer"),
+                contents: bytemuck::cast_slice(&out.vertices),
+                usage: BufferUsages::VERTEX,
+            });
+
+            self.index_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("Geometry index buffer"),
+                contents: bytemuck::cast_slice(&out.indices),
+                usage: BufferUsages::INDEX,
+            });
+        }
+    }
+
+    fn render_scene(
         &mut self,
         encoder: &mut CommandEncoder,
         surface_texture_view: &TextureView,
@@ -399,13 +364,12 @@ impl Renderer {
     ) {
         self.controller.update_camera(1.0 / delta_time);
         self.update_shader_vars();
-
         {
             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("Main render pass"),
+                label: Some("Geometry render pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &self.msaa_texture,
-                    resolve_target: Some(surface_texture_view),
+                    resolve_target: None,
                     depth_slice: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
@@ -424,17 +388,33 @@ impl Renderer {
                 occlusion_query_set: None,
             });
 
-            pass.set_pipeline(&self.render_pipeline);
+            pass.set_pipeline(&self.geometry_pipeline);
             pass.set_bind_group(0, &self.bind_group, &[]);
+            pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            pass.draw_indexed(0..self.num_indices, 0, 0..1);
+        }
 
-            for instance in self.instances.values() {
-                pass.set_bind_group(1, &instance.bind_group, &[]);
-                pass.set_index_buffer(instance.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                pass.set_vertex_buffer(0, instance.vertex_buffer.slice(..));
+        {
+            let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("raytrace render pass"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &self.msaa_texture,
+                    resolve_target: Some(surface_texture_view),
+                    depth_slice: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
 
-                let (index_range, instance_range) = instance.ranges();
-                pass.draw_indexed(index_range, 0, instance_range);
-            }
+            pass.set_pipeline(&self.raytrace_pipeline);
+            pass.set_bind_group(0, &self.bind_group, &[]);
+            pass.draw(0..6, 0..1);
         }
     }
 
@@ -445,13 +425,13 @@ impl Renderer {
 
         let surface_texture = self.surface.get_current_texture().unwrap();
         let surface_texture_view = surface_texture.texture.create_view(&TextureViewDescriptor {
-            format: Some(self.surface_format.add_srgb_suffix()),
+            format: Some(self.surface_format),
             ..Default::default()
         });
 
         let mut encoder = self.device.create_command_encoder(&Default::default());
 
-        self.render_shapes(&mut encoder, &surface_texture_view, delta_time);
+        self.render_scene(&mut encoder, &surface_texture_view, delta_time);
         self.ui.render(
             &self.device,
             &self.window,
